@@ -613,19 +613,27 @@ studentRouter.get('/attempts', requireAuth, async (req: AuthRequest, res) => {
     
     const dbUser = await getOrCreateUser(user.uid || user.sub, user.email || `${user.uid || user.sub}@user.local`);
 
-    const userAttempts = await db.select({
+    const rawAttempts = await db.select({
       id: attempts.id,
       score: attempts.score,
       createdAt: attempts.createdAt,
+      startedAt: attempts.startedAt,
+      completedAt: attempts.completedAt,
       quizTitle: quizzes.title,
       quizId: quizzes.id,
       status: attempts.status,
-      violations: attempts.violations
+      violations: attempts.violations,
+      resultsReleased: quizzes.resultsReleased
     })
     .from(attempts)
     .innerJoin(quizzes, eq(attempts.quizId, quizzes.id))
     .where(eq(attempts.userId, dbUser.id))
     .orderBy(desc(attempts.createdAt));
+
+    const userAttempts = rawAttempts.map(a => ({
+      ...a,
+      score: a.resultsReleased ? a.score : 0 // hide score if not released
+    }));
 
     return res.json(userAttempts);
   } catch (error) {
@@ -658,7 +666,28 @@ studentRouter.get('/attempts/:attemptId/review', requireAuth, async (req: AuthRe
     
     // Check if review is allowed
     const securitySettings = quiz.securitySettings as any;
-    const showAnswers = securitySettings?.showCorrectAnswersAfterSubmit === true;
+    const showAnswers = quiz.resultsReleased && securitySettings?.showCorrectAnswersAfterSubmit === true;
+    
+    // If results are not released, do not send questions and answers
+    if (!quiz.resultsReleased) {
+      return res.json({
+        attempt: {
+          id: attempt.id,
+          score: attempt.score,
+          status: attempt.status,
+          violations: attempt.violations,
+          completedAt: attempt.completedAt,
+          createdAt: attempt.createdAt
+        },
+        quiz: {
+          id: quiz.id,
+          title: quiz.title,
+          resultsReleased: quiz.resultsReleased
+        },
+        showAnswers: false,
+        userSelectedOptions: []
+      });
+    }
     
     // Fetch quiz questions
     const quizQuestions = await db.select().from(questions).where(eq(questions.quizId, quiz.id));

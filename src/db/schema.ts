@@ -33,6 +33,7 @@ export const quizzes = pgTable('quizzes', {
   code: varchar('code', { length: 50 }),
   isCodeActive: boolean('is_code_active').default(true),
   isPublic: boolean('is_public').default(false),
+  resultsReleased: boolean('results_released').default(false),
   timeLimit: integer('time_limit'), // in minutes, null means no limit
   startTime: timestamp('start_time'), // quiz available from
   endTime: timestamp('end_time'), // quiz available until

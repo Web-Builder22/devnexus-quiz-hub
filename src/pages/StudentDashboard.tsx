@@ -32,6 +32,7 @@ import {
   AlertCircle,
   Eye,
   Loader2,
+  Lock,
   HelpCircle
 } from 'lucide-react';
 
@@ -177,9 +178,11 @@ export function StudentDashboard() {
 
   // Statistics Computations
   const totalAttempts = attempts.length;
-  const bestScore = attempts.length > 0 ? Math.max(...attempts.map(a => a.score)) : 0;
-  const averageScore = attempts.length > 0 
-    ? Math.round((attempts.reduce((sum, a) => sum + a.score, 0) / attempts.length) * 10) / 10 
+  const releasedAttempts = attempts.filter((a: any) => a.resultsReleased);
+  
+  const bestScore = releasedAttempts.length > 0 ? Math.max(...releasedAttempts.map((a: any) => a.score)) : 0;
+  const averageScore = releasedAttempts.length > 0 
+    ? Math.round((releasedAttempts.reduce((sum, a: any) => sum + a.score, 0) / releasedAttempts.length) * 10) / 10 
     : 0;
   // Certificate logic: earned if score >= 50
   const earnedCertificates = realCertificates; // Using real db certificates
@@ -572,12 +575,19 @@ export function StudentDashboard() {
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <span className="block text-sm font-bold text-indigo-600">{attempt.score} pts</span>
-                        <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Completed</span>
-                      </div>
-                      <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                        <CheckCircle className="w-4 h-4" />
+                      {!attempt.resultsReleased ? (
+                        <div className="text-right">
+                          <span className="block text-sm font-bold text-slate-500 flex items-center gap-1 justify-end"><Lock className="w-3 h-3" /> Locked</span>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">Completed</span>
+                        </div>
+                      ) : (
+                        <div className="text-right">
+                          <span className="block text-sm font-bold text-indigo-600">{attempt.score} pts</span>
+                          <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Completed</span>
+                        </div>
+                      )}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!attempt.resultsReleased ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-600'}`}>
+                        {attempt.resultsReleased ? <CheckCircle className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                       </div>
                     </div>
                   </li>
@@ -705,12 +715,20 @@ export function StudentDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">
-                        {attempt.score} pts
-                      </span>
-                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full flex items-center gap-1">
-                        <CheckCircle className="w-3.5 h-3.5" /> Passed
-                      </span>
+                      {!attempt.resultsReleased ? (
+                        <span className="text-sm font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg flex items-center gap-1">
+                          <Lock className="w-3.5 h-3.5" /> Locked
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">
+                            {attempt.score} pts
+                          </span>
+                          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full flex items-center gap-1">
+                            <CheckCircle className="w-3.5 h-3.5" /> Completed
+                          </span>
+                        </>
+                      )}
                       <button 
                         onClick={() => fetchReview(attempt.id)}
                         className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100 transition-colors flex items-center gap-1"
@@ -751,21 +769,39 @@ export function StudentDashboard() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Quiz Review: {reviewData.quiz.title}</h3>
-                <p className="text-xs text-slate-500">Score: {reviewData.attempt.score} points</p>
+                <p className="text-xs text-slate-500">
+                  {reviewData.quiz.resultsReleased ? `Score: ${reviewData.attempt.score} points` : 'Score: Hidden'}
+                </p>
               </div>
             </div>
             
-            {reviewData.attempt.status === 'auto_submitted' && reviewData.attempt.violations > 0 && (
-              <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0 text-red-500" />
-                <div>
-                  <h4 className="font-bold text-sm">Certificate Denied due to Security Violations</h4>
-                  <p className="text-xs opacity-90 mt-1">This quiz was automatically submitted due to multiple security violations. You are not eligible for a certificate for this attempt.</p>
+            {!reviewData.quiz.resultsReleased ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50 rounded-xl border border-slate-200">
+                <Lock className="w-12 h-12 text-slate-400 mb-4" />
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Results Are Locked</h2>
+                <p className="text-sm text-slate-500 max-w-md">
+                  Your quiz has been submitted successfully. The results will be available once the administrator reviews and releases them. Please check back later.
+                </p>
+                <div className="mt-6 w-full max-w-xs space-y-3 bg-white p-4 rounded-lg border border-slate-200 text-left">
+                  <div className="text-sm border-b border-slate-100 pb-2"><span className="text-slate-500 font-medium">Quiz Title:</span> <span className="font-semibold text-slate-900 float-right">{reviewData.quiz.title}</span></div>
+                  <div className="text-sm border-b border-slate-100 pb-2"><span className="text-slate-500 font-medium">Submitted:</span> <span className="font-semibold text-slate-900 float-right">{new Date(reviewData.attempt.completedAt || reviewData.attempt.createdAt).toLocaleString()}</span></div>
+                  <div className="text-sm border-b border-slate-100 pb-2"><span className="text-slate-500 font-medium">Attempt ID:</span> <span className="font-semibold text-slate-900 float-right">#{reviewData.attempt.id}</span></div>
+                  <div className="text-sm"><span className="text-slate-500 font-medium">Status:</span> <span className="font-semibold text-indigo-600 float-right">Completed</span></div>
                 </div>
               </div>
-            )}
-            
-            <div className="overflow-y-auto flex-1 pr-2 space-y-6">
+            ) : (
+              <>
+                {reviewData.attempt.status === 'auto_submitted' && reviewData.attempt.violations > 0 && (
+                  <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0 text-red-500" />
+                    <div>
+                      <h4 className="font-bold text-sm">Certificate Denied due to Security Violations</h4>
+                      <p className="text-xs opacity-90 mt-1">This quiz was automatically submitted due to multiple security violations. You are not eligible for a certificate for this attempt.</p>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="overflow-y-auto flex-1 pr-2 space-y-6">
               {!reviewData.showAnswers && (
                 <div className="bg-amber-50 text-amber-800 p-4 rounded-xl text-sm mb-4">
                   The instructor has chosen not to display the correct answers for this quiz. You can only view your score.
@@ -811,6 +847,8 @@ export function StudentDashboard() {
                 </div>
               ))}
             </div>
+            </>
+            )}
           </div>
         </div>
       )}

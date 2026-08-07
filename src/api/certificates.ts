@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.ts';
 import { certificateTemplates, certificates, users, quizzes, attempts, questions } from '../db/schema.ts';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { requireAuth, AuthRequest } from '../middleware/auth.ts';
 import { getOrCreateUser } from '../db/users.ts';
 
@@ -175,7 +175,7 @@ certificatesRouter.get('/my-certificates', requireAuth, async (req: AuthRequest,
       quizId: certificates.quizId
     }).from(certificates)
       .innerJoin(quizzes, eq(certificates.quizId, quizzes.id))
-      .where(eq(certificates.userId, dbUser.id));
+      .where(and(eq(certificates.userId, dbUser.id), eq(quizzes.resultsReleased, true)));
 
     res.json(myCerts);
   } catch (error) {

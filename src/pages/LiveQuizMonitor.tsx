@@ -14,6 +14,7 @@ interface StudentStatus {
   screenActive: boolean;
   lastUpdate: number;
   status: 'active' | 'disconnected';
+  lastViolationTime?: number;
 }
 
 export function LiveQuizMonitor() {
@@ -69,6 +70,7 @@ export function LiveQuizMonitor() {
         const next = new Map<string, StudentStatus>(prev);
         const existing = next.get(data.socketId);
         if (existing) {
+          const isNewViolation = data.violations > existing.violations;
           next.set(data.socketId, {
             ...existing,
             violations: data.violations,
@@ -76,7 +78,8 @@ export function LiveQuizMonitor() {
             cameraActive: data.cameraActive,
             screenActive: data.screenActive,
             lastUpdate: data.timestamp,
-            status: 'active'
+            status: 'active',
+            lastViolationTime: isNewViolation ? data.timestamp : existing.lastViolationTime
           });
         }
         return next;
@@ -202,7 +205,7 @@ export function LiveQuizMonitor() {
                         <Camera className="w-4 h-4" />
                       </span>
                     ) : (
-                      <span className="inline-flex items-center justify-center p-1.5 bg-red-100 text-red-600 rounded-full" title="Camera Disabled">
+                      <span className="inline-flex items-center justify-center p-1.5 bg-red-100 text-red-600 rounded-full" title="Camera Offline">
                         <Camera className="w-4 h-4" />
                       </span>
                     )}
@@ -213,15 +216,22 @@ export function LiveQuizMonitor() {
                         <Monitor className="w-4 h-4" />
                       </span>
                     ) : (
-                      <span className="inline-flex items-center justify-center p-1.5 bg-red-100 text-red-600 rounded-full" title="Screen Share Disabled">
+                      <span className="inline-flex items-center justify-center p-1.5 bg-red-100 text-red-600 rounded-full" title="Screen Share Stopped">
                         <Monitor className="w-4 h-4" />
                       </span>
                     )}
                   </td>
                   <td className="py-4 px-6 text-center">
-                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${student.violations > 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
-                      {student.violations}
-                    </span>
+                    <div className="flex flex-col items-center">
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${student.violations > 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+                        {student.violations}
+                      </span>
+                      {student.lastViolationTime && (
+                        <span className="text-[10px] text-slate-500 mt-1 whitespace-nowrap">
+                          {new Date(student.lastViolationTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex flex-wrap gap-1.5">

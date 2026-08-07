@@ -57,7 +57,7 @@ quizzesRouter.post('/', requireAuth, async (req: AuthRequest, res) => {
     const uid = user.uid || user.sub;
     const email = user.email || `${uid}@user.local`;
 
-    const { title, timeLimit, isPublic, allowedAttempts, startTime, endTime } = req.body;
+    const { title, timeLimit, isPublic, allowedAttempts, startTime, endTime, resultsReleased } = req.body;
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Title is required' });
     }
@@ -98,6 +98,7 @@ quizzesRouter.post('/', requireAuth, async (req: AuthRequest, res) => {
       code: quizCode,
       isCodeActive: true,
       isPublic: Boolean(isPublic),
+      resultsReleased: resultsReleased === true,
       timeLimit: parsedTimeLimit,
       startTime: startTime ? new Date(startTime) : null,
       endTime: endTime ? new Date(endTime) : null,
@@ -202,7 +203,7 @@ quizzesRouter.patch('/:id', requireAuth, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const { title, timeLimit, status, securitySettings, isPublic, allowedAttempts, startTime, endTime } = req.body;
+    const { title, timeLimit, status, securitySettings, isPublic, allowedAttempts, startTime, endTime, resultsReleased } = req.body;
     
     const updateData: any = {};
     if (title !== undefined) updateData.title = title;
@@ -213,6 +214,7 @@ quizzesRouter.patch('/:id', requireAuth, async (req: AuthRequest, res) => {
     if (isPublic !== undefined) updateData.isPublic = isPublic;
     if (startTime !== undefined) updateData.startTime = startTime ? new Date(startTime) : null;
     if (endTime !== undefined) updateData.endTime = endTime ? new Date(endTime) : null;
+    if (resultsReleased !== undefined) updateData.resultsReleased = resultsReleased;
 
     updateData.updatedAt = new Date();
     const updated = await db.update(quizzes)

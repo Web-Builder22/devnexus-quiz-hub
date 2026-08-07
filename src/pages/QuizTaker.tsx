@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, CheckCircle2, ChevronRight, Loader2, AlertCircle, Shield, Camera, Mic, Monitor, AlertTriangle, Move } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronRight, Loader2, AlertCircle, Shield, Camera, Mic, Monitor, AlertTriangle, Move, Save } from 'lucide-react';
+import { toast } from 'sonner';
 import { io, Socket } from 'socket.io-client';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import '@tensorflow/tfjs';
@@ -44,6 +45,91 @@ interface Quiz {
   securitySettings?: SecuritySettings;
 }
 
+
+const acquireCameraStream = async (needsCamera: boolean, enableMicrophone?: boolean): Promise<MediaStream | null> => {
+  if (!needsCamera && !enableMicrophone) return null;
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error("Media permissions blocked. Please try opening the app in a new tab, or use a secure HTTPS connection.");
+  }
+  
+  if (needsCamera) {
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "user" }, width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: enableMicrophone ? true : false
+      });
+    } catch (err) {
+      console.warn("Preferred camera constraints failed, attempting fallback video constraint:", err);
+      return await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: enableMicrophone ? true : false
+      });
+    }
+  } else {
+    return await navigator.mediaDevices.getUserMedia({
+      video: false,
+      audio: true
+    });
+  }
+};
+
+const VideoPreview = React.forwardRef<HTMLVideoElement, { className?: string; stream?: MediaStream | null }>(
+  ({ className, stream }, ref) => {
+    const fallbackRef = useRef<HTMLVideoElement>(null);
+    const videoRef = (ref || fallbackRef) as React.MutableRefObject<HTMLVideoElement | null>;
+
+    useEffect(() => {
+      const el = videoRef.current;
+      if (!el) return;
+
+      if (stream) {
+        stream.getVideoTracks().forEach(track => {
+          track.enabled = true;
+        });
+
+        if (el.srcObject !== stream) {
+          el.srcObject = stream;
+        }
+
+        el.muted = true;
+        el.playsInline = true;
+
+        const playVideo = () => {
+          if (el && (el.paused || el.ended)) {
+            el.play().catch(e => console.warn('Video play error (handled):', e));
+          }
+        };
+
+        playVideo();
+
+        el.addEventListener('loadedmetadata', playVideo);
+        el.addEventListener('loadeddata', playVideo);
+        el.addEventListener('canplay', playVideo);
+
+        return () => {
+          el.removeEventListener('loadedmetadata', playVideo);
+          el.removeEventListener('loadeddata', playVideo);
+          el.removeEventListener('canplay', playVideo);
+        };
+      } else {
+        el.srcObject = null;
+      }
+    }, [stream, videoRef]);
+
+    return (
+      <video
+        ref={ref || fallbackRef}
+        autoPlay
+        playsInline
+        muted
+        className={className}
+      />
+    );
+  }
+);
+VideoPreview.displayName = 'VideoPreview';
+
 export function QuizTaker() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -72,6 +158,7 @@ export function QuizTaker() {
   // Track selected options
   const [selectedOptions, setSelectedOptions] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   
   const [attemptId, setAttemptId] = useState<number | null>(null);
@@ -185,6 +272,9 @@ export function QuizTaker() {
     }
   }, [quiz?.id, user, participantName]);
 
+  const [cameraStatus, setCameraStatus] = useState<'pending' | 'connected' | 'disconnected' | 'denied' | null>(null);
+  const [screenStatus, setScreenStatus] = useState<'pending' | 'connected' | 'disconnected' | 'denied' | null>(null);
+
   const requestPermissions = async () => {
     if (!quiz?.securitySettings) return;
     setRequestingPermissions(true);
@@ -194,40 +284,85 @@ export function QuizTaker() {
       
       let cameraStream: MediaStream | null = null;
       let screenStream: MediaStream | null = null;
-
-      if (sec.enableCamera || sec.enableMicrophone) {
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: sec.enableCamera ? { facingMode: "user" } : false,
-          audio: sec.enableMicrophone
-        });
-        if (videoRef.current) {
-           videoRef.current.srcObject = cameraStream;
+      
+      const needsCamera = sec.enableCamera || sec.enableFaceDetection || sec.enableMultiPerson || sec.enableDeviceDetection;
+      if (needsCamera || sec.enableMicrophone) {
+        setCameraStatus('pending');
+        try {
+          cameraStream = await acquireCameraStream(!!needsCamera, sec.enableMicrophone);
+          cameraStreamRef.current = cameraStream;
+          setCameraStatus('connected');
+          if (videoRef.current) {
+             videoRef.current.srcObject = cameraStream;
+             videoRef.current.play().catch(() => {});
+          }
+        } catch (e: any) {
+          setCameraStatus('denied');
+          throw e;
         }
       }
 
       if (sec.enableScreenSharing) {
-        screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true
-        });
-        if (screenRef.current) {
-           screenRef.current.srcObject = screenStream;
+        setScreenStatus('pending');
+        try {
+          screenStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true
+          });
+          screenStreamRef.current = screenStream;
+          setScreenStatus('connected');
+          if (screenRef.current) {
+             screenRef.current.srcObject = screenStream;
+             screenRef.current.play().catch(() => {});
+          }
+        } catch (e: any) {
+          setScreenStatus('denied');
+          throw e;
         }
       }
       
-      if (sec.enableCamera && cameraStream) {
-         cameraStream.getVideoTracks()[0].addEventListener('ended', () => { if (!isCleaningUpRef.current) handleViolation('Camera turned off'); });
+      if (needsCamera && cameraStream) {
+         const handleCameraEnd = async () => {
+           if (isCleaningUpRef.current) return;
+           setCameraStatus('disconnected');
+           handleViolation('Camera turned off');
+           
+           // Attempt reconnect
+           try {
+             const newStream = await acquireCameraStream(true, sec.enableMicrophone);
+             if (newStream) {
+               cameraStreamRef.current = newStream;
+               setCameraStatus('connected');
+               if (videoRef.current) {
+                 videoRef.current.srcObject = newStream;
+                 videoRef.current.play().catch(() => {});
+               }
+               newStream.getVideoTracks()[0]?.addEventListener('ended', handleCameraEnd);
+             }
+           } catch (e) {
+             console.error("Camera reconnect failed", e);
+           }
+         };
+         cameraStream.getVideoTracks()[0]?.addEventListener('ended', handleCameraEnd);
          
          // Load AI Model
-         setAiLoading(true);
-         try {
-           aiModelRef.current = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
-         } catch (e) {
-           console.error("Error loading TF model", e);
+         if (!aiModelRef.current) {
+           setAiLoading(true);
+           try {
+             aiModelRef.current = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+           } catch (e) {
+             console.error("Error loading TF model", e);
+           }
+           setAiLoading(false);
          }
-         setAiLoading(false);
       }
+
       if (sec.enableScreenSharing && screenStream) {
-         screenStream.getVideoTracks()[0].addEventListener('ended', () => { if (!isCleaningUpRef.current) handleViolation('Screen sharing stopped'); });
+         screenStream.getVideoTracks()[0].addEventListener('ended', () => { 
+           if (!isCleaningUpRef.current) {
+             setScreenStatus('disconnected');
+             handleViolation('Screen sharing stopped'); 
+           }
+         });
       }
 
       setProctoringPassed(true);
@@ -239,12 +374,19 @@ export function QuizTaker() {
     }
   };
 
+
+
   const startDetectionLoop = useCallback(() => {
     const sec = quiz?.securitySettings;
     const needsCamera = sec?.enableCamera || sec?.enableFaceDetection || sec?.enableMultiPerson || sec?.enableDeviceDetection;
     if (!videoRef.current || !aiModelRef.current || !hasStarted || !needsCamera) return;
     const detect = async () => {
-      if (videoRef.current && videoRef.current.readyState === 4 && aiModelRef.current) {
+      if (videoRef.current && videoRef.current.readyState >= 2 && aiModelRef.current) {
+        if (videoRef.current.paused) {
+          try {
+            await videoRef.current.play();
+          } catch (e) {}
+        }
         const predictions = await aiModelRef.current.detect(videoRef.current);
         
         // Draw to canvas for PIP
@@ -295,8 +437,8 @@ export function QuizTaker() {
             quizId: quiz.id,
             violations: violationsRef.current,
             detectedObjects: detectedObjects,
-            cameraActive: !!videoRef.current?.srcObject,
-            screenActive: !!screenRef.current?.srcObject
+            cameraActive: cameraStreamRef.current?.getVideoTracks()[0]?.readyState === 'live',
+            screenActive: screenStreamRef.current?.getVideoTracks()[0]?.readyState === 'live'
          });
       }
 
@@ -308,11 +450,17 @@ export function QuizTaker() {
 
   useEffect(() => {
     if (hasStarted) {
-      if (videoRef.current && cameraStreamRef.current && !videoRef.current.srcObject) {
-        videoRef.current.srcObject = cameraStreamRef.current;
+      if (videoRef.current && cameraStreamRef.current) {
+        if (videoRef.current.srcObject !== cameraStreamRef.current) {
+          videoRef.current.srcObject = cameraStreamRef.current;
+        }
+        videoRef.current.play().catch(e => console.warn("Video play on start error:", e));
       }
-      if (screenRef.current && screenStreamRef.current && !screenRef.current.srcObject) {
-        screenRef.current.srcObject = screenStreamRef.current;
+      if (screenRef.current && screenStreamRef.current) {
+        if (screenRef.current.srcObject !== screenStreamRef.current) {
+          screenRef.current.srcObject = screenStreamRef.current;
+        }
+        screenRef.current.play().catch(e => console.warn("Screen play on start error:", e));
       }
       initSocket();
       startDetectionLoop();
@@ -329,7 +477,7 @@ export function QuizTaker() {
   const startQuiz = async () => {
     if (!user || !id || !quiz) return;
     if (!participantName.trim()) {
-      alert('Please enter your participant full name for the certificate.');
+      toast('Please enter your participant full name for the certificate.');
       return;
     }
     setLoading(true);
@@ -434,6 +582,18 @@ export function QuizTaker() {
       }
     };
     
+    const handleWindowBlur = () => {
+      if (sec.tabBlur) {
+        handleViolation('Window Blur / Focus Lost');
+      }
+    };
+
+    const handleWindowResize = () => {
+      if (sec.fullscreen) {
+        handleViolation('Browser Resized');
+      }
+    };
+
     const handleCopy = (e: ClipboardEvent) => {
       if (sec.copyPaste) {
         e.preventDefault();
@@ -444,6 +604,8 @@ export function QuizTaker() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('copy', handleCopy);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('resize', handleWindowResize);
     
     if (sec.fullscreen && !document.fullscreenElement) {
        document.documentElement.requestFullscreen().catch(() => {});
@@ -453,11 +615,13 @@ export function QuizTaker() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('copy', handleCopy);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('resize', handleWindowResize);
     };
   }, [hasStarted, quiz]);
 
   const handleViolation = async (type: string) => {
-    if (!attemptIdRef.current || !user) return;
+    if (!attemptIdRef.current || !user || !quiz) return;
     
     const now = Date.now();
     // Debounce to avoid spamming the same violation
@@ -480,7 +644,7 @@ export function QuizTaker() {
         setViolations(data.violations);
         
         if (data.autoSubmitted || data.violations >= 2) {
-           alert("Quiz has been automatically submitted due to security violations.");
+           toast("Quiz has been automatically submitted due to security violations.");
            // Cleanup streams
            cleanupStreams();
            navigate('/student/dashboard', { state: { openResults: true } });
@@ -495,13 +659,49 @@ export function QuizTaker() {
   };
 
   
+  const handleSaveProgress = async (showToast = true) => {
+    if (!attemptIdRef.current || !user || isSubmitting) return;
+    setIsSaving(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/v1/student/attempts/${attemptIdRef.current}/sync`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          selectedOptions: selectedOptionsRef.current
+        })
+      });
+      if (res.ok) {
+        if (showToast) {
+          toast.success('Quiz progress saved successfully!', {
+            description: `${selectedOptionsRef.current.length} answers saved securely.`,
+            id: 'save-progress'
+          });
+        }
+      } else {
+        if (showToast) {
+          toast.error('Failed to save quiz progress.');
+        }
+      }
+    } catch (err) {
+      if (showToast) {
+        toast.error('Network error while saving progress.');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Auto-sync answers to server
   useEffect(() => {
     if (!hasStarted || !attemptIdRef.current || !user) return;
     const syncTimeout = setTimeout(async () => {
       try {
         const token = await user.getIdToken();
-        await fetch(`/api/v1/student/attempts/${attemptIdRef.current}/sync`, {
+        const res = await fetch(`/api/v1/student/attempts/${attemptIdRef.current}/sync`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -511,10 +711,13 @@ export function QuizTaker() {
             selectedOptions: selectedOptionsRef.current
           })
         });
+        if (res.ok) {
+          toast.success("Progress auto-saved", { id: "auto-save-toast", duration: 1500 });
+        }
       } catch (err) {
         console.error('Failed to sync answers', err);
       }
-    }, 1500); // Debounce sync
+    }, 2000); // Debounce sync
     return () => clearTimeout(syncTimeout);
   }, [selectedOptions, hasStarted, user]);
 
@@ -564,6 +767,7 @@ export function QuizTaker() {
 
   const executeSubmit = async (autoSubmit: boolean) => {
     setIsSubmitting(true);
+    const toastId = toast.loading(autoSubmit ? 'Auto-submitting quiz...' : 'Submitting your quiz...');
     try {
       const token = await user.getIdToken();
       const response = await fetch(`/api/v1/student/attempts/${attemptIdRef.current}/submit`, {
@@ -578,16 +782,20 @@ export function QuizTaker() {
         })
       });
       
-      
-      
-      if (response.ok) { cleanupStreams(); navigate('/student/dashboard', { state: { openResults: true } });
+      if (response.ok) {
+        toast.success(autoSubmit ? "Quiz auto-submitted!" : "Quiz submitted successfully!", {
+          id: toastId,
+          description: "Your quiz attempt has been recorded."
+        });
+        cleanupStreams();
+        navigate('/student/dashboard', { state: { openResults: true } });
       } else {
         const err = await response.json().catch(() => ({}));
-        alert(`Failed to submit quiz: ${err.error || 'Unknown error'}`);
+        toast.error(`Failed to submit quiz: ${err.error || 'Unknown error'}`, { id: toastId });
       }
     } catch (err) {
       console.error(err);
-      alert('An error occurred submitting the quiz.');
+      toast.error('An error occurred submitting the quiz.', { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -773,6 +981,18 @@ export function QuizTaker() {
           </div>
         )}
 
+        {cameraStreamRef.current && (
+          <div className="mb-6 max-w-sm mx-auto">
+            <div className="relative aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-md border-2 border-indigo-200">
+              <VideoPreview stream={cameraStreamRef.current} className="w-full h-full object-cover transform scale-x-[-1]" />
+              <div className="absolute top-2 left-2 bg-black/60 text-emerald-400 text-xs px-2.5 py-1 rounded-full font-semibold backdrop-blur flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                Live Camera Preview
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mb-8 text-left bg-indigo-50/60 p-5 rounded-xl border border-indigo-100 max-w-md mx-auto">
           <label className="block text-sm font-bold text-slate-900 mb-1">
             Participant Full Name <span className="text-red-500">*</span>
@@ -838,13 +1058,7 @@ export function QuizTaker() {
                <Move className="w-3 h-3" />
              </div>
           </div>
-          <video 
-            ref={videoRef} 
-            autoPlay 
-            playsInline 
-            muted 
-            className="w-full h-full object-cover transform scale-x-[-1]" 
-          />
+          <VideoPreview ref={videoRef} stream={cameraStreamRef.current} className="w-full h-full object-cover transform scale-x-[-1]" />
           <canvas 
             ref={canvasRef} 
             width={640} 
@@ -884,9 +1098,23 @@ export function QuizTaker() {
         </div>
         
         <div className="flex items-center gap-4">
-          {quiz.securitySettings?.enableCamera && <Camera className="w-5 h-5 text-green-500 animate-pulse" title="Camera Monitoring Active" />}
-          {quiz.securitySettings?.enableScreenSharing && <Monitor className="w-5 h-5 text-green-500 animate-pulse" title="Screen Monitoring Active" />}
-          {quiz.securitySettings?.enableMicrophone && <Mic className="w-5 h-5 text-green-500 animate-pulse" title="Mic Monitoring Active" />}
+          {quiz.securitySettings?.enableCamera && (
+            <div className="flex items-center gap-1.5" title="Camera Monitoring">
+              {cameraStatus === 'connected' && <Camera className="w-5 h-5 text-emerald-500 animate-pulse" />}
+              {cameraStatus === 'disconnected' && <Camera className="w-5 h-5 text-red-500" title="Camera Disconnected" />}
+              {cameraStatus === 'denied' && <Camera className="w-5 h-5 text-red-500" title="Camera Permission Denied" />}
+              {cameraStatus === 'pending' && <Camera className="w-5 h-5 text-amber-500" title="Camera Pending" />}
+            </div>
+          )}
+          {quiz.securitySettings?.enableScreenSharing && (
+            <div className="flex items-center gap-1.5" title="Screen Monitoring">
+              {screenStatus === 'connected' && <Monitor className="w-5 h-5 text-emerald-500 animate-pulse" />}
+              {screenStatus === 'disconnected' && <Monitor className="w-5 h-5 text-red-500" title="Screen Sharing Stopped" />}
+              {screenStatus === 'denied' && <Monitor className="w-5 h-5 text-red-500" title="Screen Permission Denied" />}
+              {screenStatus === 'pending' && <Monitor className="w-5 h-5 text-amber-500" title="Screen Pending" />}
+            </div>
+          )}
+          {quiz.securitySettings?.enableMicrophone && <Mic className="w-5 h-5 text-emerald-500 animate-pulse" title="Mic Monitoring Active" />}
           
           {timeLeft !== null && (
             <div className={`px-4 py-2 rounded-lg border font-mono font-bold ${
@@ -952,24 +1180,38 @@ export function QuizTaker() {
 
       {/* Footer / Submit bar */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+        <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm font-medium text-slate-600">
-            Make sure to review all answers before submitting.
+            Save your progress anytime or review before submitting.
           </div>
-          <button
-            onClick={() => handleSubmit()}
-            disabled={isSubmitting}
-            className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-xl font-bold shadow-md hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-100 transition-all disabled:opacity-50"
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                Submit Quiz
-                <ChevronRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleSaveProgress(true)}
+              disabled={isSaving || isSubmitting}
+              className="flex items-center gap-2 px-5 py-3 bg-slate-100 text-slate-800 rounded-xl font-semibold hover:bg-slate-200 focus:ring-4 focus:ring-slate-100 transition-all disabled:opacity-50"
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+              ) : (
+                <Save className="w-4 h-4 text-indigo-600" />
+              )}
+              Save Progress
+            </button>
+            <button
+              onClick={() => handleSubmit()}
+              disabled={isSubmitting}
+              className="flex items-center gap-2 px-7 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-md hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-100 transition-all disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  Submit Quiz
+                  <ChevronRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

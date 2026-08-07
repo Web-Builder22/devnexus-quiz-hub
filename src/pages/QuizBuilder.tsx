@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, PlusCircle, Save, Trash2, CheckCircle2, GripVertical, Settings2, Copy, Check, Key, RefreshCw, Power, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface Option {
   id?: number;
@@ -41,6 +42,7 @@ interface Quiz {
   code?: string;
   isCodeActive?: boolean;
   isPublic?: boolean;
+  resultsReleased?: boolean;
   timeLimit?: number | null;
   startTime?: string | null;
   endTime?: string | null;
@@ -263,6 +265,7 @@ export function QuizBuilder() {
             questions: [...quiz.questions, savedQuestion]
           });
         }
+        toast.success("Question saved successfully!");
         
         // Reset form
         setIsAddingQuestion(false);
@@ -274,11 +277,11 @@ export function QuizBuilder() {
         ]);
       } else {
         const err = await response.json().catch(() => ({}));
-        alert(`Failed to save question: ${err.error || response.statusText}`);
+        toast.error(`Failed to save question: ${err.error || response.statusText}`);
       }
     } catch (err: any) {
       console.error(err);
-      alert(`Error saving question: ${err.message}`);
+      toast.error(`Error saving question: ${err.message}`);
     } finally {
       setSavingQuestion(false);
     }
@@ -536,6 +539,34 @@ export function QuizBuilder() {
             <div>
               <div className="font-semibold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">Public Quiz</div>
               <div className="text-xs text-slate-500">If checked, students do not need a code to see and start this quiz.</div>
+            </div>
+          </label>
+
+          {/* Release Results */}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative flex items-center">
+              <input
+                type="checkbox"
+                checked={quiz.resultsReleased || false}
+                onChange={async (e) => {
+                   const resultsReleased = e.target.checked;
+                   setQuiz({ ...quiz, resultsReleased });
+                   try {
+                     const token = await user?.getIdToken();
+                     await fetch(`/api/v1/quizzes/${quiz.id}`, {
+                       method: 'PATCH',
+                       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ resultsReleased })
+                     });
+                   } catch(err) { console.error(err); }
+                }}
+                className="peer sr-only"
+              />
+              <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            </div>
+            <div>
+              <div className="font-semibold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">Release Results</div>
+              <div className="text-xs text-slate-500">Allow participants to see their scores, analytics, and certificates.</div>
             </div>
           </label>
 
