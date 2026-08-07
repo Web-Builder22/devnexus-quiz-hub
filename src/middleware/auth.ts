@@ -24,14 +24,21 @@ export const requireAuth = async (
   try {
     // Try JWT first
     if (token && token.split('.').length === 3) {
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as any;
-        if (decoded && decoded.uid) {
-          req.user = decoded;
-          return next();
+      // Decode without verifying to check if it's a Firebase ID token
+      const decodedUnverified = jwt.decode(token, { complete: true }) as any;
+      const isFirebaseToken = decodedUnverified?.header?.kid;
+
+      if (!isFirebaseToken) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as any;
+          if (decoded && decoded.uid) {
+            req.user = decoded;
+            return next();
+          }
+        } catch (jwtError) {
+          // It's a custom token, but invalid signature (maybe secret changed)
+          return res.status(401).json({ error: 'Unauthorized: Invalid or expired token. Please log out and log back in.' });
         }
-      } catch (jwtError) {
-        // Fallthrough to firebase
       }
     }
 
@@ -59,13 +66,18 @@ export const requireAdmin = async (
     let decodedUser: any = null;
 
     if (token && token.split('.').length === 3) {
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as any;
-        if (decoded && decoded.uid) {
-          decodedUser = decoded;
+      const decodedUnverified = jwt.decode(token, { complete: true }) as any;
+      const isFirebaseToken = decodedUnverified?.header?.kid;
+
+      if (!isFirebaseToken) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as any;
+          if (decoded && decoded.uid) {
+            decodedUser = decoded;
+          }
+        } catch (jwtError) {
+          return res.status(401).json({ error: 'Unauthorized: Invalid or expired token. Please log out and log back in.' });
         }
-      } catch (jwtError) {
-        // Fallthrough to firebase
       }
     }
 
