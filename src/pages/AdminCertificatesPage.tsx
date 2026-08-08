@@ -521,14 +521,14 @@ export function AdminCertificatesPage() {
                           const conf = certSettings?.layoutConfig?.[field];
                           if (conf && conf.enabled) {
                             let text = field.toUpperCase();
-                            if (field === 'studentName') text = 'Candidate Name (e.g., Alex Johnson)';
-                            if (field === 'studentEmail') text = 'alex.johnson@example.com';
-                            if (field === 'quizTitle') text = 'Full-Stack Engineering Assessment';
+                            if (field === 'studentName') text = 'Muhammad Nouman';
+                            if (field === 'studentEmail') text = 'nouman@example.com';
+                            if (field === 'quizTitle') text = 'Full-Stack Engineering';
                             if (field === 'certificateId') text = 'CERT-DEV-984A2';
                             if (field === 'score') text = '95 pts';
                             if (field === 'percentage') text = '95%';
-                            if (field === 'rank') text = 'Rank #1';
-                            if (field === 'issueDate') text = new Date().toLocaleDateString();
+                            if (field === 'rank') text = '#1';
+                            if (field === 'issueDate') text = '08/08/2026';
 
                             return (
                               <div 
