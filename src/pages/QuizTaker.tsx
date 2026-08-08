@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, CheckCircle2, ChevronRight, Loader2, AlertCircle, Shield, Camera, Mic, Monitor, AlertTriangle, Move, Save } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft, Loader2, AlertCircle, Shield, Camera, Mic, Monitor, AlertTriangle, Move, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { io, Socket } from 'socket.io-client';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
@@ -33,6 +33,10 @@ interface SecuritySettings {
   enableMultiPerson?: boolean;
   enableDeviceDetection?: boolean;
   maxViolations?: number;
+  minFaceConfidence?: number;
+  multipleFacesBufferSec?: number;
+  noFaceBufferSec?: number;
+  gazeSensitivity?: 'low' | 'medium' | 'high';
 }
 
 interface Quiz {
@@ -130,6 +134,17 @@ const VideoPreview = React.forwardRef<HTMLVideoElement, { className?: string; st
 );
 VideoPreview.displayName = 'VideoPreview';
 
+const resolveSecuritySettings = (sec: any) => ({
+  ...sec,
+  enableCamera: sec?.enableCamera ?? true,
+  enableFaceDetection: sec?.enableFaceDetection ?? true,
+  enableMultiPerson: sec?.enableMultiPerson ?? true,
+  enableDeviceDetection: sec?.enableDeviceDetection ?? true,
+  enableScreenSharing: sec?.enableScreenSharing ?? false,
+  enableMicrophone: sec?.enableMicrophone ?? false,
+  maxViolations: sec?.maxViolations ?? 2,
+});
+
 export function QuizTaker() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -155,8 +170,9 @@ export function QuizTaker() {
     }
   }, [user]);
   
-  // Track selected options
+  // Track selected options and question navigation
   const [selectedOptions, setSelectedOptions] = useState<number[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -179,6 +195,8 @@ export function QuizTaker() {
   const [instructionsAcknowledged, setInstructionsAcknowledged] = useState(false);
   const aiModelRef = useRef<cocoSsd.ObjectDetection | null>(null);
   const detectionLoopRef = useRef<number | null>(null);
+  const noFaceStartRef = useRef<number | null>(null);
+  const multiPersonStartRef = useRef<number | null>(null);
   const [detectedObjects, setDetectedObjects] = useState<string[]>([]);
   
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -240,10 +258,12 @@ export function QuizTaker() {
         }
         
         const data = await response.json();
+        data.securitySettings = resolveSecuritySettings(data.securitySettings);
         setQuiz(data);
         
         const sec = data.securitySettings;
-        if (sec?.enableScreenSharing || sec?.enableCamera || sec?.enableMicrophone) {
+        const needsCamera = sec?.enableCamera || sec?.enableFaceDetection || sec?.enableMultiPerson || sec?.enableDeviceDetection;
+        if (needsCamera || sec?.enableScreenSharing || sec?.enableMicrophone) {
           setProctoringPassed(false);
         } else {
           setProctoringPassed(true);
@@ -257,6 +277,8 @@ export function QuizTaker() {
     fetchQuizMetadata();
   }, [id, user]);
 
+  const rtcPeerConnectionRef = useRef<RTCPeerConnection | null>(null);
+
   const initSocket = useCallback(() => {
     if (!socketRef.current) {
       socketRef.current = io('/', { transports: ['websocket'] });
@@ -269,8 +291,74 @@ export function QuizTaker() {
           });
         }
       });
+      
+      socketRef.current.on('webrtc:offer', async (data: any) => {
+        if (!socketRef.current) return;
+        
+        const pc = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        });
+        rtcPeerConnectionRef.current = pc;
+        
+        if (cameraStreamRef.current) {
+          cameraStreamRef.current.getTracks().forEach(track => {
+            pc.addTrack(track, cameraStreamRef.current!);
+          });
+        }
+        
+        pc.onicecandidate = (e) => {
+          if (e.candidate && socketRef.current) {
+            socketRef.current.emit('webrtc:ice-candidate', { targetId: data.callerId, candidate: e.candidate });
+          }
+        };
+
+        try {
+          await pc.setRemoteDescription(data.offer);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          socketRef.current.emit('webrtc:answer', { targetId: data.callerId, answer });
+        } catch (err) {
+          console.error("WebRTC Error:", err);
+        }
+      });
+      
+      socketRef.current.on('webrtc:ice-candidate', (data: any) => {
+        if (rtcPeerConnectionRef.current && data.candidate) {
+          rtcPeerConnectionRef.current.addIceCandidate(data.candidate).catch(e => console.error(e));
+        }
+      });
+
+      socketRef.current.on('student:receive_warning', (data: any) => {
+        setWarningMessage(`Admin Warning: ${data.message || 'Please follow the quiz rules.'}`);
+        setShowWarning(true);
+      });
+
+      socketRef.current.on('student:proctoring_settings_updated', (data: any) => {
+        if (data && data.securitySettings) {
+          setQuiz((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              securitySettings: resolveSecuritySettings({
+                ...prev.securitySettings,
+                ...data.securitySettings
+              })
+            };
+          });
+          toast.info("Proctoring sensitivity thresholds updated live by administrator.");
+        }
+      });
+
+      socketRef.current.on('student:end_attempt', () => {
+        toast.error("Your attempt was ended by an administrator.");
+        cleanupStreams();
+        navigate('/student/dashboard', { state: { openResults: true } });
+      });
     }
-  }, [quiz?.id, user, participantName]);
+  }, [quiz?.id, user, participantName, navigate, cleanupStreams]);
 
   const [cameraStatus, setCameraStatus] = useState<'pending' | 'connected' | 'disconnected' | 'denied' | null>(null);
   const [screenStatus, setScreenStatus] = useState<'pending' | 'connected' | 'disconnected' | 'denied' | null>(null);
@@ -305,6 +393,9 @@ export function QuizTaker() {
       if (sec.enableScreenSharing) {
         setScreenStatus('pending');
         try {
+          if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
+            throw new Error('Screen sharing (getDisplayMedia) is not supported in this browser or iframe preview context.');
+          }
           screenStream = await navigator.mediaDevices.getDisplayMedia({
             video: true
           });
@@ -316,7 +407,11 @@ export function QuizTaker() {
           }
         } catch (e: any) {
           setScreenStatus('denied');
-          throw e;
+          if (window.self !== window.top) {
+            console.warn('Screen sharing bypassed in iframe preview.');
+          } else {
+            throw e;
+          }
         }
       }
       
@@ -389,33 +484,68 @@ export function QuizTaker() {
         }
         const predictions = await aiModelRef.current.detect(videoRef.current);
         
+        const isMobile = window.innerWidth < 768;
+        const minConfidence = isMobile ? Math.min(sec?.minFaceConfidence ?? 0.5, 0.35) : (sec?.minFaceConfidence ?? 0.5);
+        const validPredictions = predictions.filter(p => p.score >= minConfidence);
+
         // Draw to canvas for PIP
         if (canvasRef.current) {
           const ctx = canvasRef.current.getContext('2d');
           if (ctx) {
             ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-            predictions.forEach(prediction => {
+            validPredictions.forEach(prediction => {
               const [x, y, width, height] = prediction.bbox;
               ctx.strokeStyle = '#4f46e5';
               ctx.lineWidth = 2;
               ctx.strokeRect(x, y, width, height);
               ctx.fillStyle = '#4f46e5';
-              ctx.fillText(prediction.class, x, y > 10 ? y - 5 : 10);
+              ctx.fillText(`${prediction.class} (${Math.round(prediction.score * 100)}%)`, x, y > 10 ? y - 5 : 10);
             });
           }
         }
 
-        const objects = predictions.map(p => p.class);
+        const objects = validPredictions.map(p => p.class);
         setDetectedObjects(objects);
 
-        // Security logic
+        // Security logic with configurable buffers
         const personCount = objects.filter(o => o === 'person').length;
         
-        if (sec?.enableFaceDetection && personCount === 0) {
-          handleViolation('Face not visible / Left frame');
+        if (sec?.enableFaceDetection) {
+          if (personCount === 0) {
+            if (noFaceStartRef.current === null) {
+              noFaceStartRef.current = Date.now();
+            } else {
+              const elapsedSec = (Date.now() - noFaceStartRef.current) / 1000;
+              const allowedBuffer = (sec?.noFaceBufferSec ?? 4) + (isMobile ? 6 : 0);
+              if (elapsedSec >= allowedBuffer) {
+                handleViolation('Face not visible / Left frame');
+                noFaceStartRef.current = Date.now(); // reset timer after violation trigger
+              }
+            }
+          } else {
+            noFaceStartRef.current = null;
+          }
+        } else {
+          noFaceStartRef.current = null;
         }
-        if (sec?.enableMultiPerson && personCount > 1) {
-          handleViolation('Multiple persons detected');
+
+        if (sec?.enableMultiPerson) {
+          if (personCount > 1) {
+            if (multiPersonStartRef.current === null) {
+              multiPersonStartRef.current = Date.now();
+            } else {
+              const elapsedSec = (Date.now() - multiPersonStartRef.current) / 1000;
+              const allowedBuffer = sec?.multipleFacesBufferSec ?? 3;
+              if (elapsedSec >= allowedBuffer) {
+                handleViolation('Multiple persons detected');
+                multiPersonStartRef.current = Date.now(); // reset timer after violation trigger
+              }
+            }
+          } else {
+            multiPersonStartRef.current = null;
+          }
+        } else {
+          multiPersonStartRef.current = null;
         }
         
         if (sec?.enableDeviceDetection) {
@@ -448,6 +578,13 @@ export function QuizTaker() {
     detect();
   }, [hasStarted, quiz]);
 
+  // Unmount cleanup
+  useEffect(() => {
+    return () => {
+      cleanupStreams();
+    };
+  }, [cleanupStreams]);
+
   useEffect(() => {
     if (hasStarted) {
       if (videoRef.current && cameraStreamRef.current) {
@@ -466,13 +603,16 @@ export function QuizTaker() {
       startDetectionLoop();
     }
     return () => {
-      cleanupStreams();
+      if (detectionLoopRef.current) {
+        cancelAnimationFrame(detectionLoopRef.current);
+        detectionLoopRef.current = null;
+      }
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
     };
-  }, [hasStarted, startDetectionLoop, initSocket, cleanupStreams]);
+  }, [hasStarted, startDetectionLoop, initSocket]);
 
   const startQuiz = async () => {
     if (!user || !id || !quiz) return;
@@ -588,11 +728,7 @@ export function QuizTaker() {
       }
     };
 
-    const handleWindowResize = () => {
-      if (sec.fullscreen) {
-        handleViolation('Browser Resized');
-      }
-    };
+
 
     const handleCopy = (e: ClipboardEvent) => {
       if (sec.copyPaste) {
@@ -605,7 +741,6 @@ export function QuizTaker() {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('copy', handleCopy);
     window.addEventListener('blur', handleWindowBlur);
-    window.addEventListener('resize', handleWindowResize);
     
     if (sec.fullscreen && !document.fullscreenElement) {
        document.documentElement.requestFullscreen().catch(() => {});
@@ -616,7 +751,6 @@ export function QuizTaker() {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('copy', handleCopy);
       window.removeEventListener('blur', handleWindowBlur);
-      window.removeEventListener('resize', handleWindowResize);
     };
   }, [hasStarted, quiz]);
 
@@ -628,6 +762,23 @@ export function QuizTaker() {
     if (now - lastViolationTimeRef.current < 5000) return;
     lastViolationTimeRef.current = now;
 
+    let snapshotImage = null;
+    try {
+      if (videoRef.current && videoRef.current.videoWidth > 0) {
+        const canvas = document.createElement('canvas');
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+          // Get a compressed JPEG base64 (quality 0.5 to save space)
+          snapshotImage = canvas.toDataURL('image/jpeg', 0.5);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to capture snapshot:', e);
+    }
+
     try {
       const token = await user.getIdToken();
       const res = await fetch(`/api/v1/student/attempts/${attemptIdRef.current}/violation`, {
@@ -636,7 +787,7 @@ export function QuizTaker() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ type, details: `Detected: ${type}` })
+        body: JSON.stringify({ type, details: `Detected: ${type}`, snapshotImage })
       });
       
       if (res.ok) {
@@ -893,7 +1044,7 @@ export function QuizTaker() {
               </div>
             </div>
           )}
-          {sec?.enableCamera && (
+          {(sec?.enableCamera || sec?.enableFaceDetection || sec?.enableMultiPerson || sec?.enableDeviceDetection) && (
             <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
               <Camera className="w-6 h-6 text-slate-400" />
               <div>
@@ -918,13 +1069,21 @@ export function QuizTaker() {
             <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
             <div className="flex-1">
               <span className="text-sm block font-medium">{permissionsError}</span>
-              <p className="text-xs mt-1 opacity-90">Note: If you are taking this in a preview iframe, camera and screen sharing might be blocked by the browser. Try opening the app in a new tab.</p>
-              <button 
-                onClick={() => setProctoringPassed(true)}
-                className="mt-3 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded text-xs font-bold transition-colors"
-              >
-                Proceed Without Permissions (Dev Bypass)
-              </button>
+              <p className="text-xs mt-1 opacity-90">Note: If you are taking this in a preview iframe, camera and screen sharing might be blocked by browser iframe security. Try opening the app in a new tab.</p>
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <button 
+                  onClick={() => window.open(window.location.href, '_blank')}
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-bold transition-colors shadow-sm"
+                >
+                  Open App in New Tab
+                </button>
+                <button 
+                  onClick={() => setProctoringPassed(true)}
+                  className="px-3.5 py-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded text-xs font-bold transition-colors"
+                >
+                  Proceed Without Permissions (Dev Bypass)
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -962,7 +1121,7 @@ export function QuizTaker() {
         )}
 
         <p className="text-slate-600 mb-6">
-          {(quiz.securitySettings?.enableScreenSharing || quiz.securitySettings?.enableCamera || quiz.securitySettings?.enableMicrophone)
+          {(quiz.securitySettings?.enableScreenSharing || quiz.securitySettings?.enableCamera || quiz.securitySettings?.enableFaceDetection || quiz.securitySettings?.enableMultiPerson || quiz.securitySettings?.enableDeviceDetection || quiz.securitySettings?.enableMicrophone)
             ? "Permissions granted successfully. Please confirm your details to begin."
             : "Please confirm your details to begin."}
         </p>
@@ -1098,7 +1257,7 @@ export function QuizTaker() {
         </div>
         
         <div className="flex items-center gap-4">
-          {quiz.securitySettings?.enableCamera && (
+          {(quiz.securitySettings?.enableCamera || quiz.securitySettings?.enableFaceDetection || quiz.securitySettings?.enableMultiPerson || quiz.securitySettings?.enableDeviceDetection) && (
             <div className="flex items-center gap-1.5" title="Camera Monitoring">
               {cameraStatus === 'connected' && <Camera className="w-5 h-5 text-emerald-500 animate-pulse" />}
               {cameraStatus === 'disconnected' && <Camera className="w-5 h-5 text-red-500" title="Camera Disconnected" />}
@@ -1128,54 +1287,151 @@ export function QuizTaker() {
         </div>
       </div>
 
-      <div className="space-y-8 px-4">
-        {quiz.questions.map((q, index) => {
-          const isMultiSelect = q.type === 'multiple_select';
+      {/* Question Progress & Single Question View */}
+      <div className="space-y-6 px-4 max-w-3xl mx-auto">
+        {quiz.questions && quiz.questions.length > 0 && (() => {
+          const totalQuestions = quiz.questions.length;
+          const safeIndex = Math.min(Math.max(0, currentQuestionIndex), totalQuestions - 1);
+          const currentQ = quiz.questions[safeIndex];
+          const isMultiSelect = currentQ.type === 'multiple_select';
           
+          const answeredCount = quiz.questions.filter(q => 
+            q.options.some(opt => selectedOptions.includes(opt.id))
+          ).length;
+
           return (
-            <div key={q.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-start justify-between gap-4">
-                <h3 className="font-semibold text-slate-900 text-lg leading-snug">
-                  <span className="text-indigo-600 mr-2">{index + 1}.</span>
-                  {q.content}
-                </h3>
-                <span className="shrink-0 px-2.5 py-1 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-500">
-                  {q.points} pt{q.points !== 1 ? 's' : ''}
-                </span>
+            <>
+              {/* Question Navigation Matrix / Header */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                      Question {safeIndex + 1} of {totalQuestions}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500">
+                      ({answeredCount} of {totalQuestions} Answered)
+                    </span>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-32 bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-indigo-600 h-full transition-all duration-300"
+                      style={{ width: `${Math.round(((safeIndex + 1) / totalQuestions) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Question Numbers Quick Jump Palette */}
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                  {quiz.questions.map((q, idx) => {
+                    const isAnswered = q.options.some(opt => selectedOptions.includes(opt.id));
+                    const isCurrent = idx === safeIndex;
+                    return (
+                      <button
+                        key={q.id}
+                        onClick={() => setCurrentQuestionIndex(idx)}
+                        className={`w-9 h-9 rounded-xl text-xs font-bold transition-all relative flex items-center justify-center ${
+                          isCurrent
+                            ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-600 ring-offset-2'
+                            : isAnswered
+                              ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-300 hover:bg-emerald-100'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+                        }`}
+                        title={`Question ${idx + 1}${isAnswered ? ' (Answered)' : ''}`}
+                      >
+                        {idx + 1}
+                        {isAnswered && !isCurrent && (
+                          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              
-              <div className="p-5 space-y-3">
-                {q.options.map(opt => {
-                  const isSelected = selectedOptions.includes(opt.id);
-                  return (
-                    <button
-                      key={opt.id}
-                      onClick={() => handleOptionToggle(q.id, opt.id, isMultiSelect)}
-                      className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-4 group ${
-                        isSelected 
-                          ? 'border-indigo-600 bg-indigo-50/50' 
-                          : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className={`w-6 h-6 shrink-0 flex items-center justify-center transition-colors ${
-                        isMultiSelect ? 'rounded' : 'rounded-full'
-                      } border-2 ${
-                        isSelected
-                          ? 'bg-indigo-600 border-indigo-600 text-white'
-                          : 'border-slate-300 group-hover:border-indigo-400 bg-white'
-                      }`}>
-                        {isSelected && (isMultiSelect ? <div className="w-3 h-3 bg-white rounded-sm" /> : <div className="w-3 h-3 bg-white rounded-full" />)}
-                      </div>
-                      <span className={`font-medium text-base ${isSelected ? 'text-indigo-950' : 'text-slate-700'}`}>
-                        {opt.content}
-                      </span>
-                    </button>
-                  );
-                })}
+
+              {/* Current Question Card */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-start justify-between gap-4">
+                  <h3 className="font-semibold text-slate-900 text-lg md:text-xl leading-snug">
+                    <span className="text-indigo-600 mr-2">{safeIndex + 1}.</span>
+                    {currentQ.content}
+                  </h3>
+                  <span className="shrink-0 px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600">
+                    {currentQ.points} pt{currentQ.points !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                
+                <div className="p-6 space-y-3">
+                  {currentQ.options.map(opt => {
+                    const isSelected = selectedOptions.includes(opt.id);
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => handleOptionToggle(currentQ.id, opt.id, isMultiSelect)}
+                        className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-4 group ${
+                          isSelected 
+                            ? 'border-indigo-600 bg-indigo-50/60' 
+                            : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className={`w-6 h-6 shrink-0 flex items-center justify-center transition-colors ${
+                          isMultiSelect ? 'rounded-md' : 'rounded-full'
+                        } border-2 ${
+                          isSelected
+                            ? 'bg-indigo-600 border-indigo-600 text-white'
+                            : 'border-slate-300 group-hover:border-indigo-400 bg-white'
+                        }`}>
+                          {isSelected && (isMultiSelect ? <div className="w-3 h-3 bg-white rounded-sm" /> : <div className="w-3 h-3 bg-white rounded-full" />)}
+                        </div>
+                        <span className={`font-medium text-base ${isSelected ? 'text-indigo-950 font-semibold' : 'text-slate-700'}`}>
+                          {opt.content}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+
+              {/* Prev / Next Question Navigation Buttons */}
+              <div className="flex items-center justify-between gap-4 pt-2">
+                <button
+                  onClick={() => setCurrentQuestionIndex(i => Math.max(0, i - 1))}
+                  disabled={safeIndex === 0}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white rounded-xl font-semibold transition-all shadow-xs"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                  Previous
+                </button>
+
+                {safeIndex < totalQuestions - 1 ? (
+                  <button
+                    onClick={() => setCurrentQuestionIndex(i => Math.min(totalQuestions - 1, i + 1))}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl font-bold transition-all shadow-md hover:shadow-lg"
+                  >
+                    Next Question
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleSubmit()}
+                    disabled={isSubmitting}
+                    className="flex items-center gap-2 px-7 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl font-bold transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        Submit Final Quiz
+                        <CheckCircle2 className="w-5 h-5" />
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </>
           );
-        })}
+        })()}
       </div>
 
       {/* Footer / Submit bar */}

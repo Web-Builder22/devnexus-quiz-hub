@@ -103,6 +103,7 @@ analyticsRouter.get('/violations', async (req: AuthRequest, res) => {
         id: quizActivityLogs.id,
         type: quizActivityLogs.type,
         details: quizActivityLogs.details,
+        snapshotImage: quizActivityLogs.snapshotImage,
         createdAt: quizActivityLogs.createdAt,
         studentEmail: users.email,
         quizTitle: quizzes.title,

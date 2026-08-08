@@ -48,6 +48,8 @@ export const quizzes = pgTable('quizzes', {
     deviceTracking: false,
     showCorrectAnswersAfterSubmit: false,
   }),
+  issueCertificate: boolean('issue_certificate').default(false),
+  passingPercentage: integer('passing_percentage').default(70),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -93,8 +95,9 @@ export const answers = pgTable('answers', {
 export const quizActivityLogs = pgTable('quiz_activity_logs', {
   id: serial('id').primaryKey(),
   attemptId: integer('attempt_id').references(() => attempts.id, { onDelete: 'cascade' }).notNull(),
-  type: varchar('type', { length: 50 }).notNull(), // 'tab_switch', 'fullscreen_exit', 'multiple_login', 'window_blur'
+  type: varchar('type', { length: 50 }).notNull(), // 'tab_switch', 'fullscreen_exit', 'multiple_login', 'window_blur', 'webcam_snapshot'
   details: text('details'),
+  snapshotImage: text('snapshot_image'),
   ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at').defaultNow(),

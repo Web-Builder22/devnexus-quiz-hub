@@ -7,6 +7,18 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
 export const googleAuthProvider = new GoogleAuthProvider();
+googleAuthProvider.addScope('https://www.googleapis.com/auth/calendar');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/gmail.send');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/gmail.readonly');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/meetings.space.created');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/meetings.space.readonly');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/meetings.space.settings');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/drive');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/drive.file');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/drive.readonly');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/spreadsheets.readonly');
+
 
 export function formatAuthError(error: any): string {
   if (!error) return 'An unexpected error occurred. Please try again.';

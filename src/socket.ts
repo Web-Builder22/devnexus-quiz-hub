@@ -66,6 +66,31 @@ export function setupSocketIO(server: HTTPServer) {
       }
     });
 
+    // WebRTC Signaling for Live Proctoring
+    socket.on('webrtc:offer', (data) => {
+      socket.to(data.targetId).emit('webrtc:offer', { offer: data.offer, callerId: socket.id });
+    });
+
+    socket.on('webrtc:answer', (data) => {
+      socket.to(data.targetId).emit('webrtc:answer', { answer: data.answer, callerId: socket.id });
+    });
+
+    socket.on('webrtc:ice-candidate', (data) => {
+      socket.to(data.targetId).emit('webrtc:ice-candidate', { candidate: data.candidate, callerId: socket.id });
+    });
+
+    socket.on('admin:issue_warning', (data) => {
+      socket.to(data.targetId).emit('student:receive_warning', { message: data.message });
+    });
+
+    socket.on('admin:end_attempt', (data) => {
+      socket.to(data.targetId).emit('student:end_attempt', {});
+    });
+
+    socket.on('admin:update_proctoring_settings', ({ quizId, securitySettings }) => {
+      io.to(`proctoring_student_${quizId}`).emit('student:proctoring_settings_updated', { securitySettings });
+      io.to(`proctoring_admin_${quizId}`).emit('proctoring:settings_updated', { securitySettings });
+    });
 
     // --- KAHOOT STYLE GAME EVENTS ---
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { ProctoringSettingsPanel } from "../components/ProctoringSettingsPanel";
 import { ArrowLeft, PlusCircle, Save, Trash2, CheckCircle2, GripVertical, Settings2, Copy, Check, Key, RefreshCw, Power, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -43,6 +44,8 @@ interface Quiz {
   isCodeActive?: boolean;
   isPublic?: boolean;
   resultsReleased?: boolean;
+  issueCertificate?: boolean;
+  passingPercentage?: number;
   timeLimit?: number | null;
   startTime?: string | null;
   endTime?: string | null;
@@ -570,6 +573,64 @@ export function QuizBuilder() {
             </div>
           </label>
 
+          {/* Issue Certificate */}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative flex items-center">
+              <input
+                type="checkbox"
+                checked={quiz.issueCertificate || false}
+                onChange={async (e) => {
+                   const issueCertificate = e.target.checked;
+                   setQuiz({ ...quiz, issueCertificate });
+                   try {
+                     const token = await user?.getIdToken();
+                     await fetch(`/api/v1/quizzes/${quiz.id}`, {
+                       method: 'PATCH',
+                       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ issueCertificate })
+                     });
+                   } catch(err) { console.error(err); }
+                }}
+                className="peer sr-only"
+              />
+              <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            </div>
+            <div>
+              <div className="font-semibold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">Issue Certificate</div>
+              <div className="text-xs text-slate-500">Automatically issue certificates to candidates who pass.</div>
+            </div>
+          </label>
+
+          {/* Passing Percentage */}
+          {quiz.issueCertificate && (
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold text-slate-900">Passing Percentage</label>
+              <div className="text-xs text-slate-500 mb-1">Score required to get a certificate.</div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={quiz.passingPercentage ?? 70}
+                  onChange={async (e) => {
+                    const passingPercentage = e.target.value ? parseInt(e.target.value) : 70;
+                    setQuiz({ ...quiz, passingPercentage });
+                    try {
+                      const token = await user?.getIdToken();
+                      await fetch(`/api/v1/quizzes/${quiz.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ passingPercentage })
+                      });
+                    } catch(err) { console.error(err); }
+                  }}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm"
+                />
+                <span className="text-slate-500">%</span>
+              </div>
+            </div>
+          )}
+
           {/* Fullscreen Mode */}
           <label className="flex items-start gap-3 cursor-pointer group">
             <div className="relative flex items-center">
@@ -673,120 +734,11 @@ export function QuizBuilder() {
           </label>
 
           {/* Online Proctoring Settings */}
-          <div className="mt-8 pt-6 border-t border-slate-200 space-y-4 col-span-full">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <Shield className="w-4 h-4 text-indigo-600" /> Online Proctoring (AI)
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <div className="relative flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={quiz.securitySettings?.enableScreenSharing || false}
-                    onChange={(e) => handleUpdateSettings({ enableScreenSharing: e.target.checked })}
-                    className="peer sr-only"
-                  />
-                  <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">Enable Screen Sharing</div>
-                  <div className="text-xs text-slate-500">Require students to share their entire screen.</div>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <div className="relative flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={quiz.securitySettings?.enableCamera || false}
-                    onChange={(e) => handleUpdateSettings({ enableCamera: e.target.checked })}
-                    className="peer sr-only"
-                  />
-                  <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">Enable Camera Monitoring</div>
-                  <div className="text-xs text-slate-500">Require webcam feed during the quiz.</div>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <div className="relative flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={quiz.securitySettings?.enableMicrophone || false}
-                    onChange={(e) => handleUpdateSettings({ enableMicrophone: e.target.checked })}
-                    className="peer sr-only"
-                  />
-                  <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">Enable Microphone Monitoring</div>
-                  <div className="text-xs text-slate-500">Require microphone access.</div>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <div className="relative flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={quiz.securitySettings?.enableFaceDetection || false}
-                    onChange={(e) => handleUpdateSettings({ enableFaceDetection: e.target.checked })}
-                    className="peer sr-only"
-                  />
-                  <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">Enable Face Detection</div>
-                  <div className="text-xs text-slate-500">Detect if student leaves the camera frame.</div>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <div className="relative flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={quiz.securitySettings?.enableMultiPerson || false}
-                    onChange={(e) => handleUpdateSettings({ enableMultiPerson: e.target.checked })}
-                    className="peer sr-only"
-                  />
-                  <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">Enable Multiple Person Detection</div>
-                  <div className="text-xs text-slate-500">Detect if more than one person is in the frame.</div>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <div className="relative flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={quiz.securitySettings?.enableDeviceDetection || false}
-                    onChange={(e) => handleUpdateSettings({ enableDeviceDetection: e.target.checked })}
-                    className="peer sr-only"
-                  />
-                  <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">Enable Device Detection</div>
-                  <div className="text-xs text-slate-500">Detect mobile phones, tablets, or books.</div>
-                </div>
-              </label>
-
-              <div className="flex flex-col gap-1 col-span-full mt-2">
-                <label className="text-sm font-semibold text-slate-900">Maximum Security Violations</label>
-                <div className="text-xs text-slate-500 mb-1">Quiz auto-submits after this many violations (default 2).</div>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={quiz.securitySettings?.maxViolations || 2}
-                  onChange={(e) => handleUpdateSettings({ maxViolations: parseInt(e.target.value) || 2 })}
-                  className="w-24 px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
-                />
-              </div>
-            </div>
+          <div className="mt-8 pt-6 border-t border-slate-200 col-span-full">
+            <ProctoringSettingsPanel
+              settings={quiz.securitySettings || {}}
+              onChange={(updated) => handleUpdateSettings(updated)}
+            />
           </div>
         </div>
       </div>

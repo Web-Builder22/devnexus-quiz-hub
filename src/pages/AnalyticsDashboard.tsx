@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
-import { Users, FileText, CheckCircle, TrendingUp, Loader2, Award, Zap, BarChart2, ShieldCheck, HelpCircle, AlertTriangle, Download } from 'lucide-react';
+import { Users, FileText, CheckCircle, TrendingUp, Loader2, Award, Zap, BarChart2, ShieldCheck, HelpCircle, AlertTriangle, Download, X } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,6 +15,7 @@ export function AnalyticsDashboard() {
   const [recent, setRecent] = useState<any[]>([]);
   const [violations, setViolations] = useState<any[]>([]);
   const [error, setError] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -242,13 +243,14 @@ export function AnalyticsDashboard() {
         </div>
       </div>
 
-      {/* Visual Analytics Section */}
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Quiz Attempts Breakdown Chart */}
+        {/* Attempts per Quiz */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <Zap className="w-5 h-5 text-indigo-600" /> Attempts per Quiz
+              <BarChart2 className="w-5 h-5 text-indigo-600" />
+              Attempts per Quiz
             </h3>
             <span className="text-xs font-medium text-slate-500">Total: {totalAttempts} attempts</span>
           </div>
@@ -257,7 +259,7 @@ export function AnalyticsDashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={quizzes.slice(0, 8)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="title" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(val) => val.length > 12 ? val.substring(0,12) + '...' : val} />
+                  <XAxis dataKey="title" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(val) => val.length > 12 ? val.substring(0, 12) + '...' : val} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
                   <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                   <Bar dataKey="attemptsCount" name="Attempts" fill="#4f46e5" radius={[6, 6, 0, 0]} />
@@ -269,11 +271,12 @@ export function AnalyticsDashboard() {
           </div>
         </div>
 
-        {/* Weekly Score Trend */}
+        {/* Performance Trends */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-600" /> Class Performance Trends
+              <TrendingUp className="w-5 h-5 text-emerald-600" />
+              Class Performance Trends
             </h3>
             <span className="text-xs font-medium text-slate-500">Weekly Score Trajectory</span>
           </div>
@@ -281,99 +284,19 @@ export function AnalyticsDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="scoreColor" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} domain={[0, 100]} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
                 <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                <Area type="monotone" dataKey="avgScore" name="Avg Score (%)" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#scoreColor)" />
+                <Area type="monotone" dataKey="score" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
-      </div>
-
-      {/* Detailed Quiz Performance Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-hidden">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">Quiz Performance Matrix</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Comprehensive view of attempts, averages, and pass benchmarks.</p>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                <th className="pb-3 px-4 pl-2">Quiz Title</th>
-                <th className="pb-3 px-4 text-center">Total Attempts</th>
-                <th className="pb-3 px-4 text-center">Avg Score</th>
-                <th className="pb-3 px-4 text-center">Highest Score</th>
-                <th className="pb-3 px-4 text-center">Completion Rate</th>
-                <th className="pb-3 px-4 text-right pr-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm divide-y divide-slate-100">
-              {quizzes.map((quiz, i) => {
-                const quizAvg = quiz.avgScore || 0;
-                const completionRate = quiz.attemptsCount > 0 ? '100%' : '0%';
-                return (
-                  <tr key={i} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 pl-2 font-bold text-slate-900">{quiz.title}</td>
-                    <td className="py-3.5 px-4 text-center text-slate-600 font-mono font-medium">{quiz.attemptsCount}</td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="inline-block px-2.5 py-1 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-md">
-                        {quizAvg} pts
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-semibold text-emerald-600">
-                      {quiz.attemptsCount > 0 ? `${Math.min(100, quizAvg + 15)} pts` : '-'}
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="text-xs font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">
-                        {completionRate}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right pr-2">
-                      <button
-                        onClick={() => handleExportPDF(quiz.id)}
-                        disabled={exportingId === quiz.id || quiz.attemptsCount === 0}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-50 hover:text-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        title={quiz.attemptsCount === 0 ? "No attempts to export" : "Download PDF"}
-                      >
-                        {exportingId === quiz.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Download className="w-3.5 h-3.5" />
-                        )}
-                        Export
-                      </button>
-                      <Link
-                        to={`/quizzes/${quiz.id}/results`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-medium rounded-lg transition-colors ml-2"
-                        title="View Participants"
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                        Participants
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-              {quizzes.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400">
-                    No active quizzes found in system.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
         </div>
       </div>
 
@@ -388,7 +311,6 @@ export function AnalyticsDashboard() {
             <p className="text-xs text-slate-500 mt-0.5">Recent suspicious activities and constraint breaches during active attempts.</p>
           </div>
         </div>
-
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -397,6 +319,7 @@ export function AnalyticsDashboard() {
                 <th className="pb-3 px-4">Student</th>
                 <th className="pb-3 px-4">Quiz</th>
                 <th className="pb-3 px-4">Violation Details</th>
+                <th className="pb-3 px-4">Proof</th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
@@ -408,11 +331,18 @@ export function AnalyticsDashboard() {
                   <td className="py-3.5 px-4 font-semibold text-slate-900">{log.studentEmail}</td>
                   <td className="py-3.5 px-4 text-slate-700">{log.quizTitle}</td>
                   <td className="py-3.5 px-4 text-red-600 font-medium">{log.details}</td>
+                  <td className="py-3.5 px-4">
+                    {log.snapshotImage && (
+                      <button onClick={() => setSelectedImage(log.snapshotImage)} className="text-indigo-600 hover:underline text-xs flex items-center gap-1">
+                        View Image
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
               {violations.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-8 text-center text-slate-400">
+                  <td colSpan={5} className="py-8 text-center text-slate-400">
                     No security violations recorded recently.
                   </td>
                 </tr>
@@ -422,6 +352,22 @@ export function AnalyticsDashboard() {
         </div>
       </div>
 
+      {/* Image Modal */}
+      {selectedImage && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
+          <div className="bg-white rounded-xl p-2 max-w-3xl w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-2 px-2">
+              <h3 className="font-semibold text-slate-900">Violation Snapshot</h3>
+              <button onClick={() => setSelectedImage(null)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-500">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <img src={selectedImage} alt="Violation Snapshot" className="w-full h-auto rounded-lg object-contain bg-slate-900 max-h-[70vh]" />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+

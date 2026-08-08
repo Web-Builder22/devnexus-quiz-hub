@@ -13,7 +13,7 @@ export const studentRouter = Router();
 studentRouter.post('/attempts/:id/violation', requireAuth, async (req: AuthRequest, res) => {
   try {
     const attemptId = parseInt(req.params.id);
-    const { type, details } = req.body;
+    const { type, details, snapshotImage } = req.body;
     if (isNaN(attemptId)) return res.status(400).json({ error: 'Invalid attempt ID' });
     
     const result = await db.transaction(async (tx) => {
@@ -25,6 +25,7 @@ studentRouter.post('/attempts/:id/violation', requireAuth, async (req: AuthReque
         attemptId,
         type: type || 'security_violation',
         details: details || '',
+        snapshotImage: snapshotImage || null,
         ipAddress: req.ip || '',
         userAgent: req.headers['user-agent'] || ''
       });
@@ -340,23 +341,32 @@ studentRouter.post('/attempts/:id/submit', requireAuth, async (req: AuthRequest,
       const qz = certQuizResult[0];
       const maxV = (qz.securitySettings as any)?.maxViolations || 2;
       const isSecurityAutoSubmit = updated[0].status === 'auto_submitted' && (updated[0].violations || 0) >= maxV;
-
       if (!isSecurityAutoSubmit) {
-        const tplResult = await db.select().from(certificateTemplates).where(eq(certificateTemplates.adminId, qz.authorId));
-        if (tplResult.length > 0) {
-          const tpl = tplResult[0];
-          if (tpl.enabled) {
-            const totalPoints = quizQuestions.reduce((sum, q) => sum + q.points, 0);
-            const percentage = totalPoints > 0 ? (score / totalPoints) * 100 : 0;
-            if (percentage >= (tpl.passingPercentage || 0)) {
-              const certId = crypto.randomBytes(8).toString('hex').toUpperCase();
-              await db.insert(certificates).values({
-                userId: dbUser.id,
-                quizId: quizId,
-                certificateId: certId
-              }).onConflictDoNothing();
+        const totalPoints = quizQuestions.reduce((sum, q) => sum + q.points, 0);
+        const percentage = totalPoints > 0 ? (score / totalPoints) * 100 : 0;
+        let shouldIssue = false;
+
+        if (qz.issueCertificate) {
+          if (percentage >= (qz.passingPercentage || 0)) {
+            shouldIssue = true;
+          }
+        } else {
+          const tplResult = await db.select().from(certificateTemplates).where(eq(certificateTemplates.adminId, qz.authorId));
+          if (tplResult.length > 0) {
+            const tpl = tplResult[0];
+            if (tpl.enabled && percentage >= (tpl.passingPercentage || 0)) {
+              shouldIssue = true;
             }
           }
+        }
+
+        if (shouldIssue) {
+          const certId = crypto.randomBytes(8).toString('hex').toUpperCase();
+          await db.insert(certificates).values({
+            userId: dbUser.id,
+            quizId: quizId,
+            certificateId: certId
+          }).onConflictDoNothing();
         }
       }
     }

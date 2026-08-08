@@ -203,7 +203,7 @@ quizzesRouter.patch('/:id', requireAuth, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const { title, timeLimit, status, securitySettings, isPublic, allowedAttempts, startTime, endTime, resultsReleased } = req.body;
+    const { title, timeLimit, status, securitySettings, isPublic, allowedAttempts, startTime, endTime, resultsReleased, issueCertificate, passingPercentage } = req.body;
     
     const updateData: any = {};
     if (title !== undefined) updateData.title = title;
@@ -215,6 +215,8 @@ quizzesRouter.patch('/:id', requireAuth, async (req: AuthRequest, res) => {
     if (startTime !== undefined) updateData.startTime = startTime ? new Date(startTime) : null;
     if (endTime !== undefined) updateData.endTime = endTime ? new Date(endTime) : null;
     if (resultsReleased !== undefined) updateData.resultsReleased = resultsReleased;
+    if (issueCertificate !== undefined) updateData.issueCertificate = issueCertificate;
+    if (passingPercentage !== undefined) updateData.passingPercentage = passingPercentage;
 
     updateData.updatedAt = new Date();
     const updated = await db.update(quizzes)
