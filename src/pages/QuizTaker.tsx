@@ -485,7 +485,7 @@ export function QuizTaker() {
         const predictions = await aiModelRef.current.detect(videoRef.current);
         
         const isMobile = window.innerWidth < 768;
-        const minConfidence = isMobile ? Math.min(sec?.minFaceConfidence ?? 0.5, 0.35) : (sec?.minFaceConfidence ?? 0.5);
+        const minConfidence = isMobile ? Math.min(sec?.minFaceConfidence ?? 0.5, 0.15) : (sec?.minFaceConfidence ?? 0.5);
         const validPredictions = predictions.filter(p => p.score >= minConfidence);
 
         // Draw to canvas for PIP
@@ -516,7 +516,7 @@ export function QuizTaker() {
               noFaceStartRef.current = Date.now();
             } else {
               const elapsedSec = (Date.now() - noFaceStartRef.current) / 1000;
-              const allowedBuffer = (sec?.noFaceBufferSec ?? 4) + (isMobile ? 6 : 0);
+              const allowedBuffer = (sec?.noFaceBufferSec ?? 4) + (isMobile ? 12 : 0);
               if (elapsedSec >= allowedBuffer) {
                 handleViolation('Face not visible / Left frame');
                 noFaceStartRef.current = Date.now(); // reset timer after violation trigger
