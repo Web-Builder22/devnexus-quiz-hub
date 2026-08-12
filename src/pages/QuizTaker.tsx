@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft, Loader2, AlertCircle, Shield, Camera, Mic, Monitor, AlertTriangle, Move, Save } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft, Loader2, AlertCircle, Shield, ShieldAlert, Camera, Mic, Monitor, AlertTriangle, Move, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { io, Socket } from 'socket.io-client';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
@@ -60,7 +60,7 @@ const acquireCameraStream = async (needsCamera: boolean, enableMicrophone?: bool
   if (needsCamera) {
     try {
       return await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "user" }, width: { ideal: 640 }, height: { ideal: 480 } },
+        video: { facingMode: { ideal: "user" }, /* dynamic resolution */ },
         audio: enableMicrophone ? true : false
       });
     } catch (err) {
@@ -180,6 +180,8 @@ export function QuizTaker() {
   const [attemptId, setAttemptId] = useState<number | null>(null);
   const [violations, setViolations] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
+  const [showFinalViolation, setShowFinalViolation] = useState(false);
+  const [finalViolationMessage, setFinalViolationMessage] = useState("");
   const [warningMessage, setWarningMessage] = useState('');
   
   const selectedOptionsRef = useRef<number[]>([]);
@@ -220,7 +222,7 @@ export function QuizTaker() {
       screenStreamRef.current = null;
     }
     if (detectionLoopRef.current) {
-      cancelAnimationFrame(detectionLoopRef.current);
+      clearTimeout(detectionLoopRef.current);
       detectionLoopRef.current = null;
     }
   }, []);
@@ -386,7 +388,7 @@ export function QuizTaker() {
           }
         } catch (e: any) {
           setCameraStatus('denied');
-          throw e;
+          if (window.self !== window.top) { console.warn("Camera/Mic bypassed in iframe preview due to permission denial."); } else { throw e; }
         }
       }
 
@@ -410,7 +412,7 @@ export function QuizTaker() {
           if (window.self !== window.top) {
             console.warn('Screen sharing bypassed in iframe preview.');
           } else {
-            throw e;
+            if (window.self !== window.top) { console.warn("Camera/Mic bypassed in iframe preview due to permission denial."); } else { throw e; }
           }
         }
       }
@@ -485,11 +487,17 @@ export function QuizTaker() {
         const predictions = await aiModelRef.current.detect(videoRef.current);
         
         const isMobile = window.innerWidth < 768;
-        const minConfidence = isMobile ? Math.min(sec?.minFaceConfidence ?? 0.5, 0.15) : (sec?.minFaceConfidence ?? 0.5);
+        const minConfidence = isMobile ? Math.min(sec?.minFaceConfidence ?? 0.4, 0.15) : Math.min(sec?.minFaceConfidence ?? 0.5, 0.35);
         const validPredictions = predictions.filter(p => p.score >= minConfidence);
 
         // Draw to canvas for PIP
-        if (canvasRef.current) {
+        if (canvasRef.current && videoRef.current) {
+          const vw = videoRef.current.videoWidth;
+          const vh = videoRef.current.videoHeight;
+          if (vw && vh && (canvasRef.current.width !== vw || canvasRef.current.height !== vh)) {
+             canvasRef.current.width = vw;
+             canvasRef.current.height = vh;
+          }
           const ctx = canvasRef.current.getContext('2d');
           if (ctx) {
             ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
@@ -516,7 +524,7 @@ export function QuizTaker() {
               noFaceStartRef.current = Date.now();
             } else {
               const elapsedSec = (Date.now() - noFaceStartRef.current) / 1000;
-              const allowedBuffer = (sec?.noFaceBufferSec ?? 4) + (isMobile ? 12 : 0);
+              const allowedBuffer = (sec?.noFaceBufferSec ?? 10) + (isMobile ? 5 : 0);
               if (elapsedSec >= allowedBuffer) {
                 handleViolation('Face not visible / Left frame');
                 noFaceStartRef.current = Date.now(); // reset timer after violation trigger
@@ -535,7 +543,7 @@ export function QuizTaker() {
               multiPersonStartRef.current = Date.now();
             } else {
               const elapsedSec = (Date.now() - multiPersonStartRef.current) / 1000;
-              const allowedBuffer = sec?.multipleFacesBufferSec ?? 3;
+              const allowedBuffer = sec?.multipleFacesBufferSec ?? 5;
               if (elapsedSec >= allowedBuffer) {
                 handleViolation('Multiple persons detected');
                 multiPersonStartRef.current = Date.now(); // reset timer after violation trigger
@@ -572,7 +580,8 @@ export function QuizTaker() {
          });
       }
 
-      detectionLoopRef.current = requestAnimationFrame(detect);
+      // Throttle detection to ~1 frame per second to avoid high CPU usage
+      detectionLoopRef.current = window.setTimeout(detect, 1000) as any;
     };
 
     detect();
@@ -794,11 +803,10 @@ export function QuizTaker() {
         const data = await res.json();
         setViolations(data.violations);
         
-        if (data.autoSubmitted || data.violations >= 2) {
-           toast("Quiz has been automatically submitted due to security violations.");
-           // Cleanup streams
+        if (data.autoSubmitted || data.violations >= (quiz?.securitySettings?.maxViolations || 2)) {
+           setFinalViolationMessage(`FINAL SECURITY VIOLATION: ${type} detected. Your quiz has been automatically submitted.`);
+           setShowFinalViolation(true);
            cleanupStreams();
-           navigate('/student/dashboard', { state: { openResults: true } });
         } else {
            setWarningMessage(`Security Warning: ${type} detected. One more violation will automatically submit your quiz.`);
            setShowWarning(true);
@@ -1198,10 +1206,10 @@ export function QuizTaker() {
       {/* PIP Floating Camera Preview */}
       {(quiz.securitySettings?.enableCamera || quiz.securitySettings?.enableDeviceDetection || quiz.securitySettings?.enableFaceDetection || quiz.securitySettings?.enableMultiPerson) && (
         <div 
-          className="fixed z-50 rounded-xl overflow-hidden shadow-2xl border-4 border-white cursor-move touch-none group"
+          className="fixed z-50 rounded-xl overflow-hidden shadow-2xl border-2 sm:border-4 border-white cursor-move touch-none group w-32 h-40 sm:w-48 sm:h-36 md:w-60 md:h-48"
           style={{ 
             top: pipPos.y, left: pipPos.x,
-            width: '240px', height: '180px',
+            
             backgroundColor: '#000'
           }}
           onPointerDown={handlePointerDown}
@@ -1220,18 +1228,18 @@ export function QuizTaker() {
           <VideoPreview ref={videoRef} stream={cameraStreamRef.current} className="w-full h-full object-cover transform scale-x-[-1]" />
           <canvas 
             ref={canvasRef} 
-            width={640} 
-            height={480} 
+             
             className="absolute top-0 left-0 w-full h-full object-cover transform scale-x-[-1] pointer-events-none" 
           />
         </div>
       )}
 
+      
       {/* Warning Modal */}
       {showWarning && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <div className="fixed inset-0 z-[100] bg-slate-900/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl relative z-[101]">
+            <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-slate-900 mb-2">Security Warning</h3>
             <p className="text-slate-600 mb-6">{warningMessage}</p>
             <button
@@ -1243,6 +1251,24 @@ export function QuizTaker() {
           </div>
         </div>
       )}
+
+      {/* Final Violation Modal */}
+      {showFinalViolation && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/80 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl relative z-[101]">
+            <ShieldAlert className="w-16 h-16 text-red-600 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">Quiz Terminated</h3>
+            <p className="text-slate-700 font-medium mb-6">{finalViolationMessage}</p>
+            <button
+              onClick={() => navigate('/student/dashboard', { state: { openResults: true } })}
+              className="w-full px-4 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
 
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10 p-4 mb-8 shadow-sm flex items-center justify-between rounded-b-2xl">

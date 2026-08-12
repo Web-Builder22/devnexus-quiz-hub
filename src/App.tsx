@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthenticatedLayout } from './components/AuthenticatedLayout';
@@ -33,7 +34,8 @@ function DashboardRedirect() {
 
 export default function App() {
   return (
-    <AuthProvider>
+    <ThemeProvider defaultTheme="system" storageKey="app-ui-theme">
+      <AuthProvider>
       <Toaster position="top-right" richColors closeButton />
       <BrowserRouter>
         <Routes>
@@ -74,6 +76,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </ThemeProvider>
   );
 }
 

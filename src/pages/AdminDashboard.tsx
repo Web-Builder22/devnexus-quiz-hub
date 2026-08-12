@@ -283,7 +283,7 @@ export function AdminDashboard() {
                   <li key={idx} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between">
                     <div>
                       <h4 className="font-semibold text-slate-900 text-sm">
-                        {submission.studentEmail?.split('@')[0]}
+                        {submission.studentName || submission.studentDisplayName || submission.studentEmail?.split('@')[0]}
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">
                         Completed <span className="font-medium text-slate-800">{submission.quizTitle}</span>

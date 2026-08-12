@@ -312,7 +312,7 @@ export function StudentDashboard() {
 
       {/* Profile & Banner Header */}
       <div className="bg-gradient-to-r from-indigo-700 via-indigo-600 to-indigo-800 rounded-2xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/4" />
+        <div className="absolute right-0 top-0 w-80 h-80 bg-white dark:bg-slate-900/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/4" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
@@ -350,7 +350,7 @@ export function StudentDashboard() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => setActiveModal('profile')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl border border-white/20 backdrop-blur-sm transition-all text-sm"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900/10 hover:bg-white dark:bg-slate-900/20 text-white font-medium rounded-xl border border-white/20 backdrop-blur-sm transition-all text-sm"
             >
               <Edit3 className="w-4 h-4" />
               Edit Profile
@@ -361,43 +361,43 @@ export function StudentDashboard() {
 
       {/* Quiz Statistics Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-indigo-200 transition-all">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:border-indigo-200 transition-all">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Attempted</span>
             <Target className="w-4 h-4 text-indigo-500" />
           </div>
-          <div className="text-2xl font-black text-slate-900">{totalAttempts}</div>
+          <div className="text-2xl font-black text-slate-900 dark:text-white">{totalAttempts}</div>
           <div className="text-[11px] text-slate-500 mt-1">Total quizzes taken</div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-indigo-200 transition-all">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:border-indigo-200 transition-all">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Best Score</span>
             <Trophy className="w-4 h-4 text-amber-500" />
           </div>
-          <div className="text-2xl font-black text-slate-900">{bestScore} <span className="text-xs font-normal text-slate-500">pts</span></div>
+          <div className="text-2xl font-black text-slate-900 dark:text-white">{bestScore} <span className="text-xs font-normal text-slate-500">pts</span></div>
           <div className="text-[11px] text-slate-500 mt-1">Highest achievement</div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-indigo-200 transition-all">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:border-indigo-200 transition-all">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Avg Score</span>
             <TrendingUp className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-2xl font-black text-slate-900">{averageScore} <span className="text-xs font-normal text-slate-500">pts</span></div>
+          <div className="text-2xl font-black text-slate-900 dark:text-white">{averageScore} <span className="text-xs font-normal text-slate-500">pts</span></div>
           <div className="text-[11px] text-slate-500 mt-1">Overall performance</div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-indigo-200 transition-all">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:border-indigo-200 transition-all">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Certificates</span>
             <Award className="w-4 h-4 text-blue-500" />
           </div>
-          <div className="text-2xl font-black text-slate-900">{earnedCertificates.length}</div>
+          <div className="text-2xl font-black text-slate-900 dark:text-white">{earnedCertificates.length}</div>
           <div className="text-[11px] text-slate-500 mt-1">Passed certificates</div>
         </div>
 
-        <div className="col-span-2 md:col-span-1 bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-indigo-200 transition-all">
+        <div className="col-span-2 md:col-span-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:border-indigo-200 transition-all">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Rank Tier</span>
             <Sparkles className="w-4 h-4 text-purple-500" />
@@ -432,7 +432,7 @@ export function StudentDashboard() {
                   if (codeError) setCodeError(null);
                 }}
                 placeholder="Enter Code (e.g. DEV-7A92X)"
-                className="w-full sm:w-64 px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-slate-400 font-mono font-bold tracking-wider uppercase text-base focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white/15 transition-all shadow-inner"
+                className="w-full sm:w-64 px-4 py-3 bg-white dark:bg-slate-900/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-slate-400 font-mono font-bold tracking-wider uppercase text-base focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white dark:bg-slate-900/15 transition-all shadow-inner"
               />
             </div>
             <button
@@ -464,7 +464,7 @@ export function StudentDashboard() {
       </div>
 
       {/* Quick Action Navigation Buttons Bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-500 px-3">Quick Actions:</span>
         <div className="flex flex-wrap items-center gap-2 flex-1 justify-end">
           <button
@@ -502,7 +502,7 @@ export function StudentDashboard() {
         {/* Available Quizzes */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Target className="w-5 h-5 text-indigo-500" />
               Available Quizzes
             </h2>
@@ -513,18 +513,18 @@ export function StudentDashboard() {
 
           <div className="space-y-3">
             {quizzes.length === 0 ? (
-              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 text-center">
                 <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
                   <PlayCircle className="w-6 h-6 text-slate-400" />
                 </div>
-                <p className="text-slate-900 font-medium text-sm">No quizzes available right now.</p>
+                <p className="text-slate-900 dark:text-white font-medium text-sm">No quizzes available right now.</p>
                 <p className="text-slate-500 text-xs mt-1">Check back later when instructors publish new content.</p>
               </div>
             ) : (
               quizzes.map(quiz => (
-                <div key={quiz.id} className="bg-white rounded-xl border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-md transition-all group flex items-center justify-between">
+                <div key={quiz.id} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 hover:border-indigo-300 hover:shadow-md transition-all group flex items-center justify-between">
                   <div>
-                    <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{quiz.title}</h3>
+                    <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">{quiz.title}</h3>
                     <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
                       Added {new Date(quiz.createdAt).toLocaleDateString()}
@@ -539,7 +539,7 @@ export function StudentDashboard() {
         {/* Recent Performance */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Award className="w-5 h-5 text-emerald-500" />
               Recent Attempts
             </h2>
@@ -553,13 +553,13 @@ export function StudentDashboard() {
             )}
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             {attempts.length === 0 ? (
               <div className="p-8 text-center">
                 <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
                   <Award className="w-6 h-6 text-slate-400" />
                 </div>
-                <p className="text-slate-900 font-medium text-sm">No attempts recorded yet.</p>
+                <p className="text-slate-900 dark:text-white font-medium text-sm">No attempts recorded yet.</p>
                 <p className="text-slate-500 text-xs mt-1">Complete a quiz to see your performance metrics here.</p>
               </div>
             ) : (
@@ -567,7 +567,7 @@ export function StudentDashboard() {
                 {attempts.slice(0, 5).map(attempt => (
                   <li key={attempt.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between">
                     <div>
-                      <h4 className="font-semibold text-slate-900 text-sm">{attempt.quizTitle}</h4>
+                      <h4 className="font-semibold text-slate-900 dark:text-white text-sm">{attempt.quizTitle}</h4>
                       <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
                         <span>{new Date(attempt.createdAt).toLocaleDateString()}</span>
                         <span>•</span>
@@ -601,7 +601,7 @@ export function StudentDashboard() {
       {/* MODAL 1: Edit Profile */}
       {activeModal === 'profile' && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 relative animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 relative animate-in fade-in zoom-in-95 duration-200">
             <button 
               onClick={() => setActiveModal('none')}
               className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
@@ -614,7 +614,7 @@ export function StudentDashboard() {
                 <User className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Edit Profile</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Profile</h3>
                 <p className="text-xs text-slate-500">Update your account information</p>
               </div>
             </div>
@@ -634,7 +634,7 @@ export function StudentDashboard() {
                   required
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Your Full Name"
                 />
               </div>
@@ -645,7 +645,7 @@ export function StudentDashboard() {
                   type="text"
                   disabled
                   value={user?.email || ''}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-500 cursor-not-allowed"
                 />
               </div>
 
@@ -655,7 +655,7 @@ export function StudentDashboard() {
                   type="text"
                   disabled
                   value={dbUser?.role || 'Student'}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500 capitalize cursor-not-allowed"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-500 capitalize cursor-not-allowed"
                 />
               </div>
 
@@ -683,7 +683,7 @@ export function StudentDashboard() {
       {/* MODAL 2: View Detailed Results */}
       {activeModal === 'results' && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 relative max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 relative max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
             <button 
               onClick={() => setActiveModal('none')}
               className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
@@ -696,7 +696,7 @@ export function StudentDashboard() {
                 <BarChart2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Quiz Attempt History</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Quiz Attempt History</h3>
                 <p className="text-xs text-slate-500">Full record of your completed assessments</p>
               </div>
             </div>
@@ -708,7 +708,7 @@ export function StudentDashboard() {
                 attempts.map((attempt) => (
                   <div key={attempt.id} className="py-3.5 flex items-center justify-between">
                     <div>
-                      <h4 className="font-bold text-slate-900 text-sm">{attempt.quizTitle}</h4>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">{attempt.quizTitle}</h4>
                       <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" />
                         {new Date(attempt.createdAt).toLocaleDateString()} at {new Date(attempt.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -756,7 +756,7 @@ export function StudentDashboard() {
       {/* MODAL 5: Review Attempt */}
       {activeModal === 'review' && reviewData && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl border border-slate-200 relative max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 relative max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
             <button 
               onClick={() => { setActiveModal('results'); setReviewData(null); }}
               className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
@@ -768,7 +768,7 @@ export function StudentDashboard() {
                 <Eye className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Quiz Review: {reviewData.quiz.title}</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Quiz Review: {reviewData.quiz.title}</h3>
                 <p className="text-xs text-slate-500">
                   {reviewData.quiz.resultsReleased ? `Score: ${reviewData.attempt.score} points` : 'Score: Hidden'}
                 </p>
@@ -776,16 +776,16 @@ export function StudentDashboard() {
             </div>
             
             {!reviewData.quiz.resultsReleased ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50 rounded-xl border border-slate-200 dark:border-slate-800">
                 <Lock className="w-12 h-12 text-slate-400 mb-4" />
-                <h2 className="text-xl font-bold text-slate-900 mb-2">Results Are Locked</h2>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Results Are Locked</h2>
                 <p className="text-sm text-slate-500 max-w-md">
                   Your quiz has been submitted successfully. The results will be available once the administrator reviews and releases them. Please check back later.
                 </p>
-                <div className="mt-6 w-full max-w-xs space-y-3 bg-white p-4 rounded-lg border border-slate-200 text-left">
-                  <div className="text-sm border-b border-slate-100 pb-2"><span className="text-slate-500 font-medium">Quiz Title:</span> <span className="font-semibold text-slate-900 float-right">{reviewData.quiz.title}</span></div>
-                  <div className="text-sm border-b border-slate-100 pb-2"><span className="text-slate-500 font-medium">Submitted:</span> <span className="font-semibold text-slate-900 float-right">{new Date(reviewData.attempt.completedAt || reviewData.attempt.createdAt).toLocaleString()}</span></div>
-                  <div className="text-sm border-b border-slate-100 pb-2"><span className="text-slate-500 font-medium">Attempt ID:</span> <span className="font-semibold text-slate-900 float-right">#{reviewData.attempt.id}</span></div>
+                <div className="mt-6 w-full max-w-xs space-y-3 bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800 text-left">
+                  <div className="text-sm border-b border-slate-100 pb-2"><span className="text-slate-500 font-medium">Quiz Title:</span> <span className="font-semibold text-slate-900 dark:text-white float-right">{reviewData.quiz.title}</span></div>
+                  <div className="text-sm border-b border-slate-100 pb-2"><span className="text-slate-500 font-medium">Submitted:</span> <span className="font-semibold text-slate-900 dark:text-white float-right">{new Date(reviewData.attempt.completedAt || reviewData.attempt.createdAt).toLocaleString()}</span></div>
+                  <div className="text-sm border-b border-slate-100 pb-2"><span className="text-slate-500 font-medium">Attempt ID:</span> <span className="font-semibold text-slate-900 dark:text-white float-right">#{reviewData.attempt.id}</span></div>
                   <div className="text-sm"><span className="text-slate-500 font-medium">Status:</span> <span className="font-semibold text-indigo-600 float-right">Completed</span></div>
                 </div>
               </div>
@@ -808,14 +808,14 @@ export function StudentDashboard() {
                 </div>
               )}
               {reviewData.quiz.questions.map((q: any, idx: number) => (
-                <div key={q.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                  <h4 className="font-semibold text-slate-900 mb-3">{idx + 1}. {q.content}</h4>
+                <div key={q.id} className="bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                  <h4 className="font-semibold text-slate-900 dark:text-white mb-3">{idx + 1}. {q.content}</h4>
                   <div className="space-y-2">
                     {q.options.map((opt: any) => {
                       const isSelected = reviewData.userSelectedOptions.includes(opt.id);
                       const isCorrect = opt.isCorrect;
                       
-                      let optClass = "border-slate-200 bg-white text-slate-700";
+                      let optClass = "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700";
                       let icon = null;
                       
                       if (reviewData.showAnswers) {
@@ -856,7 +856,7 @@ export function StudentDashboard() {
       {/* MODAL 3: Certificates */}
       {activeModal === 'certificates' && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 relative max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 relative max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
             <button 
               onClick={() => { setActiveModal('none'); setSelectedCertificate(null); }}
               className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
@@ -869,7 +869,7 @@ export function StudentDashboard() {
                 <Award className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Earned Certificates</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Earned Certificates</h3>
                 <p className="text-xs text-slate-500">Official certificates of completion</p>
               </div>
             </div>
@@ -877,9 +877,9 @@ export function StudentDashboard() {
             {selectedCertificate ? (
               <div className="flex-1 flex flex-col h-[600px] overflow-hidden space-y-4">
                 {certData ? (
-                  <div className="w-full flex-1 flex items-center justify-center bg-slate-100 rounded-xl border border-slate-200 overflow-hidden relative">
+                  <div className="w-full flex-1 flex items-center justify-center bg-slate-100 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden relative">
                     <div 
-                      className="relative bg-white shadow-sm"
+                      className="relative bg-white dark:bg-slate-900 shadow-sm"
                       style={{
                         width: '100%',
                         maxWidth: '800px',
@@ -915,14 +915,14 @@ export function StudentDashboard() {
                     </div>
                   </div>
                 ) : (
-                  <div className="w-full flex-1 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="w-full flex-1 flex items-center justify-center bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-xl">
                     <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-2">
                   <button
                     onClick={() => { setSelectedCertificate(null); setCertData(null); }}
-                    className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                    className="text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-white"
                   >
                     ← Back to certificates list
                   </button>
@@ -946,7 +946,7 @@ export function StudentDashboard() {
                   earnedCertificates.map((cert) => (
                     <div key={cert.id} className="py-4 flex items-center justify-between">
                       <div>
-                        <h4 className="font-bold text-slate-900 text-sm">{cert.quizTitle}</h4>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm">{cert.quizTitle}</h4>
                         <p className="text-xs text-slate-500 mt-0.5">
                           Issued on {new Date(cert.issuedAt).toLocaleDateString()}
                         </p>
@@ -972,7 +972,7 @@ export function StudentDashboard() {
       {/* MODAL 4: Leaderboard */}
       {activeModal === 'leaderboard' && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 relative max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 relative max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
             <button 
               onClick={() => setActiveModal('none')}
               className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
@@ -985,7 +985,7 @@ export function StudentDashboard() {
                 <Trophy className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Student Leaderboard</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Student Leaderboard</h3>
                 <p className="text-xs text-slate-500">Top quiz performers this month</p>
               </div>
             </div>
@@ -997,7 +997,7 @@ export function StudentDashboard() {
                   className={`p-3.5 rounded-xl border flex items-center justify-between transition-all ${
                     item.isUser 
                       ? 'bg-indigo-50/70 border-indigo-200 shadow-sm' 
-                      : 'bg-white border-slate-100 hover:border-slate-200'
+                      : 'bg-white dark:bg-slate-900 border-slate-100 hover:border-slate-200 dark:border-slate-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -1010,7 +1010,7 @@ export function StudentDashboard() {
                       #{item.rank}
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         {item.name}
                         {item.isUser && (
                           <span className="bg-indigo-600 text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase">
@@ -1045,7 +1045,7 @@ export function StudentDashboard() {
       {/* MODAL 5: Quiz Instructions & Confirmation */}
       {activeModal === 'quiz_instructions' && validatedQuiz && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 relative animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative animate-in fade-in zoom-in-95 duration-200">
             <button 
               onClick={() => { setActiveModal('none'); setValidatedQuiz(null); }}
               className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
@@ -1061,22 +1061,22 @@ export function StudentDashboard() {
                 <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                   Quiz Code Validated
                 </span>
-                <h3 className="text-xl font-extrabold text-slate-900 mt-0.5">{validatedQuiz.title}</h3>
+                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mt-0.5">{validatedQuiz.title}</h3>
               </div>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 mb-6">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-600 border-b border-slate-200/60 pb-2">
+            <div className="bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3 mb-6">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600 border-b border-slate-200 dark:border-slate-800/60 pb-2">
                 <span className="flex items-center gap-1.5"><Key className="w-4 h-4 text-indigo-500" /> Quiz Code</span>
-                <span className="font-mono font-bold text-indigo-700 text-sm bg-white px-2 py-0.5 rounded border border-slate-200">{validatedQuiz.code}</span>
+                <span className="font-mono font-bold text-indigo-700 text-sm bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800">{validatedQuiz.code}</span>
               </div>
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-600 border-b border-slate-200/60 pb-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600 border-b border-slate-200 dark:border-slate-800/60 pb-2">
                 <span className="flex items-center gap-1.5"><HelpCircle className="w-4 h-4 text-indigo-500" /> Total Questions</span>
-                <span className="font-bold text-slate-900">{validatedQuiz.questionsCount || 0} Questions</span>
+                <span className="font-bold text-slate-900 dark:text-white">{validatedQuiz.questionsCount || 0} Questions</span>
               </div>
               <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
                 <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-indigo-500" /> Time Limit</span>
-                <span className="font-bold text-slate-900">{validatedQuiz.timeLimit ? `${validatedQuiz.timeLimit} Minutes` : 'No Time Limit'}</span>
+                <span className="font-bold text-slate-900 dark:text-white">{validatedQuiz.timeLimit ? `${validatedQuiz.timeLimit} Minutes` : 'No Time Limit'}</span>
               </div>
             </div>
 

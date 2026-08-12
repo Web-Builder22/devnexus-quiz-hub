@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Bell, Search, Menu, UserCheck, Shield, GraduationCap, UserCircle } from 'lucide-react';
+import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,7 +23,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-10 shrink-0 transition-all duration-300">
+    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-10 shrink-0 transition-all duration-300">
       <div className="flex items-center gap-4">
         <button 
           onClick={onToggleSidebar}
@@ -31,7 +32,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           <Menu className="w-5 h-5" />
         </button>
         <div className="hidden sm:flex items-center gap-2 text-sm text-slate-500">
-          <span className="font-semibold text-slate-900">Quiz System</span>
+          <span className="font-semibold text-slate-900 dark:text-white">Quiz System</span>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
           <span className="font-medium text-indigo-600 capitalize">{currentRole} Portal</span>
         </div>
@@ -78,6 +79,10 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           )}
         </div>
 
+        <div className="relative">
+          <ThemeToggle />
+        </div>
+
         {/* Notifications Popup Dropdown */}
         <div className="relative">
           <button 
@@ -91,7 +96,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50 animate-in fade-in zoom-in-95">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                <span className="text-xs font-bold text-slate-900">Notifications</span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">Notifications</span>
                 <span className="text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full">3 New</span>
               </div>
               <div className="space-y-2 text-xs">

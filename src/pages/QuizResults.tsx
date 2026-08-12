@@ -121,7 +121,7 @@ export function QuizResults() {
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Name: ${participant.studentName || 'Unknown'}`, 120, 65);
+      doc.text(`Name: ${participant.studentDisplayName || participant.studentName || 'Unknown'}`, 120, 65);
       doc.text(`Email: ${participant.studentEmail || 'N/A'}`, 120, 72);
       doc.text(`Status: ${participant.status === 'auto_submitted' ? 'Auto Submitted' : 'Completed'}`, 120, 79);
       doc.text(`Submitted: ${new Date(participant.completedAt || participant.startedAt).toLocaleString()}`, 120, 86);
@@ -239,8 +239,8 @@ export function QuizResults() {
                     </div>
                   </td>
                   <td className="py-4 px-6">
-                    <p className="font-semibold text-slate-900">{participant.studentEmail}</p>
-                    <p className="text-xs text-slate-500">{participant.studentName || 'Student'}</p>
+                    <p className="font-semibold text-slate-900">{participant.studentDisplayName || participant.studentName || participant.studentEmail?.split('@')[0] || 'Unknown'}</p>
+                    <p className="text-xs text-slate-500">{participant.studentEmail}</p>
                   </td>
                   <td className="py-4 px-6 text-center">
                     <span className="font-bold text-indigo-600">{participant.score} pts</span>

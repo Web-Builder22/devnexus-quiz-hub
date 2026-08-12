@@ -98,7 +98,7 @@ export function AnalyticsDashboard() {
       const tableColumn = ["Rank", "Student Name", "Email", "Score", "%", "Correct", "Wrong", "Time Taken", "Status"];
       const tableRows = data.results.map((r: any) => [
         r.rank,
-        r.studentName || 'Unknown',
+        r.studentName || r.studentDisplayName || r.studentEmail?.split('@')[0] || 'Unknown',
         r.studentEmail || 'N/A',
         r.score,
         `${r.percentage}%`,
@@ -328,7 +328,7 @@ export function AnalyticsDashboard() {
                   <td className="py-3.5 px-4 pl-2 text-slate-500 text-xs">
                     {new Date(log.createdAt).toLocaleString()}
                   </td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-900">{log.studentEmail}</td>
+                  <td className="py-3.5 px-4 font-semibold text-slate-900">{log.studentDisplayName || log.studentEmail?.split('@')[0]}</td>
                   <td className="py-3.5 px-4 text-slate-700">{log.quizTitle}</td>
                   <td className="py-3.5 px-4 text-red-600 font-medium">{log.details}</td>
                   <td className="py-3.5 px-4">

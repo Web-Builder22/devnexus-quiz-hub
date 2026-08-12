@@ -18,14 +18,14 @@ certificatesRouter.get('/settings', requireAuth, async (req: AuthRequest, res) =
     if (settings.length === 0) {
       // Create default
       const defaultLayoutConfig = {
-        studentName: { x: 148.5, y: 92, fontSize: 36, color: '#000000', align: 'center', enabled: true, fontStyle: 'italic' },
+        studentName: { x: 148.5, y: 92, fontSize: 36, color: '#000000', align: 'center', enabled: false, fontStyle: 'italic' },
         studentEmail: { x: 148.5, y: 110, fontSize: 14, color: '#666666', align: 'center', enabled: false },
-        quizTitle: { x: 148.5, y: 122, fontSize: 20, color: '#000000', align: 'center', enabled: true, fontStyle: 'bold' },
-        score: { x: 47.5, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: true },
-        percentage: { x: 98, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: true },
-        rank: { x: 148.5, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: true },
-        issueDate: { x: 199, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: true },
-        certificateId: { x: 249.5, y: 163, fontSize: 12, color: '#000000', align: 'center', enabled: true }
+        quizTitle: { x: 148.5, y: 122, fontSize: 20, color: '#000000', align: 'center', enabled: false, fontStyle: 'bold' },
+        score: { x: 47.5, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: false },
+        percentage: { x: 98, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: false },
+        rank: { x: 148.5, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: false },
+        issueDate: { x: 199, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: false },
+        certificateId: { x: 249.5, y: 163, fontSize: 12, color: '#000000', align: 'center', enabled: false }
       };
       
       const newSettings = await db.insert(certificateTemplates).values({
@@ -74,6 +74,40 @@ certificatesRouter.post('/settings', requireAuth, async (req: AuthRequest, res) 
       }).where(eq(certificateTemplates.adminId, dbUser.id));
     }
     
+    
+    if (enabled) {
+      // Retroactive issuance for all passed attempts across all admin's quizzes
+      const { quizzes, attempts, questions } = await import('../db/schema.ts');
+      const { inArray, and, sql } = await import('drizzle-orm');
+      const crypto = await import('crypto');
+
+      const adminQuizzes = await db.select().from(quizzes).where(eq(quizzes.authorId, dbUser.id));
+      for (const qz of adminQuizzes) {
+         let passPct = qz.passingPercentage || passingPercentage || 70;
+         const qzAttempts = await db.select().from(attempts).where(and(eq(attempts.quizId, qz.id), inArray(attempts.status, ['submitted', 'auto_submitted'])));
+         
+         const qs = await db.select().from(questions).where(eq(questions.quizId, qz.id));
+         const totalPoints = qs.reduce((sum, q) => sum + q.points, 0);
+
+         const existingCerts = await db.select().from(certificates).where(eq(certificates.quizId, qz.id));
+         
+         for (const a of qzAttempts) {
+            const hasCert = existingCerts.some(c => c.userId === a.userId);
+            if (!hasCert) {
+               const percentage = totalPoints > 0 ? (a.score / totalPoints) * 100 : 0;
+               if (percentage >= passPct) {
+                  const certId = crypto.default.randomBytes(8).toString('hex').toUpperCase();
+                  await db.insert(certificates).values({
+                    userId: a.userId,
+                    quizId: qz.id,
+                    certificateId: certId
+                  }).onConflictDoNothing();
+               }
+            }
+         }
+      }
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error(error);
@@ -210,14 +244,14 @@ certificatesRouter.get('/:id/download-data', requireAuth, async (req: AuthReques
     if (!tpl) {
        // Create default if missing
        const defaultLayoutConfig = {
-        studentName: { x: 148.5, y: 100, fontSize: 24, color: '#000000', align: 'center', enabled: true },
+        studentName: { x: 148.5, y: 100, fontSize: 24, color: '#000000', align: 'center', enabled: false },
         studentEmail: { x: 148.5, y: 110, fontSize: 14, color: '#666666', align: 'center', enabled: false },
-        quizTitle: { x: 148.5, y: 130, fontSize: 18, color: '#000000', align: 'center', enabled: true },
-        score: { x: 148.5, y: 150, fontSize: 16, color: '#000000', align: 'center', enabled: true },
+        quizTitle: { x: 148.5, y: 130, fontSize: 18, color: '#000000', align: 'center', enabled: false },
+        score: { x: 148.5, y: 150, fontSize: 16, color: '#000000', align: 'center', enabled: false },
         percentage: { x: 148.5, y: 160, fontSize: 16, color: '#000000', align: 'center', enabled: false },
         rank: { x: 148.5, y: 170, fontSize: 16, color: '#000000', align: 'center', enabled: false },
-        issueDate: { x: 70, y: 180, fontSize: 14, color: '#000000', align: 'left', enabled: true },
-        certificateId: { x: 227, y: 180, fontSize: 10, color: '#666666', align: 'right', enabled: true }
+        issueDate: { x: 70, y: 180, fontSize: 14, color: '#000000', align: 'left', enabled: false },
+        certificateId: { x: 227, y: 180, fontSize: 10, color: '#666666', align: 'right', enabled: false }
       };
       const newSettings = await db.insert(certificateTemplates).values({
         adminId: quiz.authorId,

@@ -1,6 +1,7 @@
+import crypto from 'crypto';
 import { Router } from 'express';
 import { db } from '../db/index.ts';
-import { attempts, quizzes, users, quizActivityLogs } from '../db/schema.ts';
+import { attempts, quizzes, users, quizActivityLogs, certificates, certificateTemplates } from '../db/schema.ts';
 import { desc, eq, sql, inArray } from 'drizzle-orm';
 import { questions, options, answers } from '../db/schema.ts';
 import { requireAuth, AuthRequest } from '../middleware/auth.ts';
@@ -78,6 +79,7 @@ analyticsRouter.get('/recent', async (req: AuthRequest, res) => {
         quizTitle: quizzes.title,
         studentName: attempts.participantName,
         studentEmail: users.email,
+        studentDisplayName: users.displayName,
         status: attempts.status,
         violations: attempts.violations,
       })
@@ -106,6 +108,7 @@ analyticsRouter.get('/violations', async (req: AuthRequest, res) => {
         snapshotImage: quizActivityLogs.snapshotImage,
         createdAt: quizActivityLogs.createdAt,
         studentEmail: users.email,
+        studentDisplayName: users.displayName,
         quizTitle: quizzes.title,
       })
       .from(quizActivityLogs)
@@ -157,7 +160,8 @@ analyticsRouter.get('/quizzes/:id/export', async (req: AuthRequest, res) => {
       startedAt: attempts.startedAt,
       completedAt: attempts.completedAt,
       studentName: attempts.participantName,
-      studentEmail: users.email
+      studentEmail: users.email,
+      studentDisplayName: users.displayName
     })
     .from(attempts)
     .innerJoin(users, eq(attempts.userId, users.id))
@@ -218,6 +222,39 @@ analyticsRouter.get('/quizzes/:id/export', async (req: AuthRequest, res) => {
 
     // Assign ranks (handling ties if needed, but simple 1 to N is fine)
     results = results.map((r, idx) => ({ ...r, rank: idx + 1 }));
+
+    // Check if certificates should be retroactively issued
+    let issueCertificates = quiz.issueCertificate;
+    let passPct = quiz.passingPercentage || 0;
+    
+    if (!issueCertificates) {
+      const tpls = await db.select().from(certificateTemplates).where(eq(certificateTemplates.adminId, dbUser.id));
+      if (tpls.length > 0 && tpls[0].enabled) {
+        issueCertificates = true;
+        passPct = tpls[0].passingPercentage || 0;
+      }
+    }
+
+    // Fetch existing certificates
+    const existingCerts = await db.select().from(certificates).where(eq(certificates.quizId, quizId));
+    
+    // Attach certificateId and generate if needed
+    for (let r of results) {
+      let cert = existingCerts.find((c: any) => c.userId === r.studentId);
+      if (cert) {
+        r.certificateId = cert.certificateId;
+      } else if (issueCertificates && r.percentage >= passPct) {
+        // Issue retroactively
+        const certId = crypto.randomBytes(8).toString('hex').toUpperCase();
+        await db.insert(certificates).values({
+          userId: r.studentId,
+          quizId: quizId,
+          certificateId: certId
+        }).onConflictDoNothing();
+        r.certificateId = certId;
+      }
+    }
+
 
     res.json({
       quiz: {

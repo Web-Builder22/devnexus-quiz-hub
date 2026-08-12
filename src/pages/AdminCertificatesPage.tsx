@@ -68,14 +68,14 @@ export function AdminCertificatesPage() {
                 passingPercentage: 70,
                 backgroundImage: null,
                 layoutConfig: {
-        studentName: { x: 148.5, y: 92, fontSize: 36, color: '#000000', align: 'center', enabled: true, fontStyle: 'italic' },
+        studentName: { x: 148.5, y: 92, fontSize: 36, color: '#000000', align: 'center', enabled: false, fontStyle: 'italic' },
         studentEmail: { x: 148.5, y: 110, fontSize: 14, color: '#666666', align: 'center', enabled: false },
-        quizTitle: { x: 148.5, y: 122, fontSize: 20, color: '#000000', align: 'center', enabled: true, fontStyle: 'bold' },
-        score: { x: 47.5, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: true },
-        percentage: { x: 98, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: true },
-        rank: { x: 148.5, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: true },
-        issueDate: { x: 199, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: true },
-        certificateId: { x: 249.5, y: 163, fontSize: 12, color: '#000000', align: 'center', enabled: true }
+        quizTitle: { x: 148.5, y: 122, fontSize: 20, color: '#000000', align: 'center', enabled: false, fontStyle: 'bold' },
+        score: { x: 47.5, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: false },
+        percentage: { x: 98, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: false },
+        rank: { x: 148.5, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: false },
+        issueDate: { x: 199, y: 163, fontSize: 14, color: '#000000', align: 'center', enabled: false },
+        certificateId: { x: 249.5, y: 163, fontSize: 12, color: '#000000', align: 'center', enabled: false }
                 }
              });
           }
@@ -511,45 +511,21 @@ export function AdminCertificatesPage() {
                           width: '100%',
                           maxWidth: '850px',
                           aspectRatio: '297/210',
-                          backgroundImage: certSettings?.backgroundImage ? `url(${certSettings.backgroundImage})` : 'none',
-                          backgroundSize: '100% 100%',
-                          backgroundRepeat: 'no-repeat',
-                          containerType: 'inline-size'
                         }}
                       >
-                        {['studentName', 'studentEmail', 'quizTitle', 'score', 'percentage', 'rank', 'issueDate', 'certificateId'].map(field => {
-                          const conf = certSettings?.layoutConfig?.[field];
-                          if (conf && conf.enabled) {
-                            let text = field.toUpperCase();
-                            if (field === 'studentName') text = 'Muhammad Nouman';
-                            if (field === 'studentEmail') text = 'nouman@example.com';
-                            if (field === 'quizTitle') text = 'Full-Stack Engineering';
-                            if (field === 'certificateId') text = 'CERT-DEV-984A2';
-                            if (field === 'score') text = '95 pts';
-                            if (field === 'percentage') text = '95%';
-                            if (field === 'rank') text = '#1';
-                            if (field === 'issueDate') text = '08/08/2026';
-
-                            return (
-                              <div 
-                                key={field}
-                                style={{
-                                  position: 'absolute',
-                                  left: `${(conf.x / 297) * 100}%`,
-                                  top: `${(conf.y / 210) * 100}%`,
-                                  transform: `translate(${conf.align === 'center' ? '-50%' : conf.align === 'right' ? '-100%' : '0'}, -100%)`,
-                                  color: conf.color || '#000',
-                                  fontSize: `${conf.fontSize * 0.1187}cqi`,
-                                  whiteSpace: 'nowrap',
-                                  fontWeight: field === 'studentName' || field === 'quizTitle' ? 'bold' : 'normal'
-                                }}
-                              >
-                                {text}
-                              </div>
-                            );
-                          }
-                          return null;
-                        })}
+                        <CertificateRenderer 
+                          data={{
+                            studentName: "Alex Johnson",
+                            studentEmail: "alex.johnson@example.com",
+                            quizTitle: "Advanced Full-Stack Development",
+                            score: "87 / 100",
+                            percentage: "87%",
+                            rank: "#3",
+                            issueDate: "11/08/2026",
+                            certificateId: "CERT-DEMO-001"
+                          }}
+                          template={certSettings} 
+                        />
                       </div>
                     </div>
                   </div>

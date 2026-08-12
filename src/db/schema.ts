@@ -118,14 +118,14 @@ export const certificateTemplates = pgTable('certificate_templates', {
   passingPercentage: integer('passing_percentage').default(70),
   backgroundImage: text('background_image'),
   layoutConfig: json('layout_config').default({
-    studentName: { x: 148.5, y: 100, fontSize: 24, color: '#000000', align: 'center', enabled: true },
+    studentName: { x: 148.5, y: 100, fontSize: 24, color: '#000000', align: 'center', enabled: false },
     studentEmail: { x: 148.5, y: 110, fontSize: 14, color: '#666666', align: 'center', enabled: false },
-    quizTitle: { x: 148.5, y: 130, fontSize: 18, color: '#000000', align: 'center', enabled: true },
-    score: { x: 148.5, y: 150, fontSize: 16, color: '#000000', align: 'center', enabled: true },
+    quizTitle: { x: 148.5, y: 130, fontSize: 18, color: '#000000', align: 'center', enabled: false },
+    score: { x: 148.5, y: 150, fontSize: 16, color: '#000000', align: 'center', enabled: false },
     percentage: { x: 148.5, y: 160, fontSize: 16, color: '#000000', align: 'center', enabled: false },
     rank: { x: 148.5, y: 170, fontSize: 16, color: '#000000', align: 'center', enabled: false },
-    issueDate: { x: 70, y: 180, fontSize: 14, color: '#000000', align: 'left', enabled: true },
-    certificateId: { x: 227, y: 180, fontSize: 10, color: '#666666', align: 'right', enabled: true }
+    issueDate: { x: 70, y: 180, fontSize: 14, color: '#000000', align: 'left', enabled: false },
+    certificateId: { x: 227, y: 180, fontSize: 10, color: '#666666', align: 'right', enabled: false }
   }),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

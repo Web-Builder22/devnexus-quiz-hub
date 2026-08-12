@@ -19,7 +19,7 @@ export function AuthenticatedLayout() {
   }, []);
 
   return (
-    <div className="flex h-screen w-full bg-[#f8fafc] text-slate-900 font-sans overflow-hidden antialiased">
+    <div className="flex h-screen w-full bg-[#f8fafc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans overflow-hidden antialiased">
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div 
