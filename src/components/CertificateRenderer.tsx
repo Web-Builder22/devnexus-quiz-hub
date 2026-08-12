@@ -1,6 +1,7 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Award, Hexagon } from 'lucide-react';
+import { DevNexusLogo } from './DevNexusLogo';
 
 export const CertificateRenderer = ({ data, template, scale = 1 }: any) => {
   if (!template) return null;
@@ -74,7 +75,7 @@ export const CertificateRenderer = ({ data, template, scale = 1 }: any) => {
           
           {/* Top Logo Area */}
           <div className="w-full flex justify-center items-start mt-[1cqi]">
-            <img src="/devnexus-logo.jpg" alt="DEVNEXUS Logo" className="h-[12cqi] w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+            <DevNexusLogo className="h-[20cqi] w-auto object-contain drop-shadow-2xl" />
           </div>
 
           {/* Title Area */}
